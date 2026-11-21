@@ -132,3 +132,8 @@ presets in 2.3 s. wasm bundle 271 kB (98 kB gzip).
 
 ### For playtesting
 Nothing yet (no game UI until M4).
+
+**Update (M2 review, 2026-11-21):** owner confirmed progressive amounts stay
+whole credits and nothing is precomputed for now. M2 shell checked in Chrome:
+DDB 9/6 → 98.9808%; a custom DDB 8/5 saved in the page gives 96.7861%
+(= preset), persists across reload; no console errors.
