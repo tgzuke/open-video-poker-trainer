@@ -1,0 +1,102 @@
+{
+  "id": "double-bonus",
+  "name": "Double Bonus Poker",
+  "label": "Double Bonus",
+  "deck": {
+    "ranks": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "T",
+      "J",
+      "Q",
+      "K",
+      "A"
+    ],
+    "suits": 4
+  },
+  "max_bet": 5,
+  "progressive_line": "royal_flush",
+  "lines": [
+    {
+      "id": "royal_flush",
+      "name": "Royal Flush",
+      "hand": "royal_flush"
+    },
+    {
+      "id": "straight_flush",
+      "name": "Straight Flush",
+      "hand": "straight_flush"
+    },
+    {
+      "id": "four_aces",
+      "name": "Four Aces",
+      "hand": "four_of_a_kind",
+      "quad_ranks": [
+        "A"
+      ]
+    },
+    {
+      "id": "four_2_4",
+      "name": "Four 2s-4s",
+      "hand": "four_of_a_kind",
+      "quad_ranks": [
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "four_5_k",
+      "name": "Four 5s-Ks",
+      "hand": "four_of_a_kind",
+      "quad_ranks": [
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "T",
+        "J",
+        "Q",
+        "K"
+      ]
+    },
+    {
+      "id": "full_house",
+      "name": "Full House",
+      "hand": "full_house"
+    },
+    {
+      "id": "flush",
+      "name": "Flush",
+      "hand": "flush"
+    },
+    {
+      "id": "straight",
+      "name": "Straight",
+      "hand": "straight"
+    },
+    {
+      "id": "three_of_a_kind",
+      "name": "Three of a Kind",
+      "hand": "three_of_a_kind"
+    },
+    {
+      "id": "two_pair",
+      "name": "Two Pair",
+      "hand": "two_pair"
+    },
+    {
+      "id": "jacks_or_better",
+      "name": "Jacks or Better",
+      "hand": "pair",
+      "min_rank": "J"
+    }
+  ]
+}

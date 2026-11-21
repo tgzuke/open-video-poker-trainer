@@ -1,0 +1,11 @@
+{
+  "game": "double-bonus",
+  "tables": [
+    {"id": "double-bonus-10-7", "name": "10/7", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 160, "four_2_4": 80, "four_5_k": 50, "full_house": 10, "flush": 7, "straight": 5, "three_of_a_kind": 3, "two_pair": 1, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}, "published_return_pct": 100.1725},
+    {"id": "double-bonus-9-7", "name": "9/7", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 160, "four_2_4": 80, "four_5_k": 50, "full_house": 9, "flush": 7, "straight": 5, "three_of_a_kind": 3, "two_pair": 1, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}, "published_return_pct": 99.1065},
+    {"id": "double-bonus-9-6", "name": "9/6", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 160, "four_2_4": 80, "four_5_k": 50, "full_house": 9, "flush": 6, "straight": 5, "three_of_a_kind": 3, "two_pair": 1, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}, "published_return_pct": 97.81},
+    {"id": "double-bonus-9-5", "name": "9/5", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 160, "four_2_4": 80, "four_5_k": 50, "full_house": 9, "flush": 5, "straight": 5, "three_of_a_kind": 3, "two_pair": 1, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}},
+    {"id": "double-bonus-9-6-4", "name": "9/6/4", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 160, "four_2_4": 80, "four_5_k": 50, "full_house": 9, "flush": 6, "straight": 4, "three_of_a_kind": 3, "two_pair": 1, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}, "published_return_pct": 96.38},
+    {"id": "double-bonus-9-5-4", "name": "9/5/4", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 160, "four_2_4": 80, "four_5_k": 50, "full_house": 9, "flush": 5, "straight": 4, "three_of_a_kind": 3, "two_pair": 1, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}, "published_return_pct": 95.27}
+  ]
+}

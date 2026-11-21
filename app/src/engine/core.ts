@@ -1,6 +1,12 @@
 // Request handling shared by the worker and tests; no DOM, no worker globals.
 import type { Engine } from "../wasm/ovp_engine.js";
-import type { HoldEvsResult, Request, ResponseData } from "./protocol";
+import type { Catalog, HoldEvsResult, PayTableJson, Request, ResponseData } from "./protocol";
+
+/** The parts of the wasm module the host needs (injected for testability). */
+export interface EngineModule {
+  catalog(): string;
+  builtin(paytableId: string): Engine;
+}
 
 export function bestHold(evs: ArrayLike<number>): number {
   let best = 0;
@@ -8,30 +14,63 @@ export function bestHold(evs: ArrayLike<number>): number {
   return best;
 }
 
-export function holdEvs(engine: Engine, hand: string, bet: number): HoldEvsResult {
-  const cards = engine.parseHand(hand);
-  const evs = Array.from(engine.holdEvs(cards, bet));
-  return { cards: Array.from(cards, (c) => engine.cardName(c)), evs, best: bestHold(evs) };
-}
-
 export class EngineHost {
   private engine: Engine | null = null;
-  constructor(private readonly make: (paytableId: string) => Engine) {}
+  private catalogCache: Catalog | null = null;
+  constructor(private readonly mod: EngineModule) {}
+
+  catalog(): Catalog {
+    return (this.catalogCache ??= JSON.parse(this.mod.catalog()) as Catalog);
+  }
+
+  /** Point the engine at a pay table, rebuilding draw tables only when the
+   *  game changes. */
+  private select(table: PayTableJson, custom: boolean): boolean {
+    let rebuilt = false;
+    if (!this.engine || this.engine.gameId() !== table.game) {
+      const preset = this.catalog().paytables.find((t) => t.game === table.game);
+      if (!preset) throw new Error(`unknown game '${table.game}'`);
+      this.engine?.free();
+      this.engine = null;
+      this.engine = this.mod.builtin(preset.id);
+      rebuilt = true;
+    }
+    if (custom) this.engine.setCustomPaytable(JSON.stringify(table));
+    else this.engine.setPaytable(table.id);
+    return rebuilt;
+  }
 
   handle(req: Request): ResponseData {
     const t0 = performance.now();
-    if (req.kind === "load") {
-      this.engine?.free();
-      this.engine = this.make(req.paytableId);
-      return { kind: "load", buildMs: performance.now() - t0 };
+    switch (req.kind) {
+      case "catalog":
+        return { kind: "catalog", catalog: this.catalog() };
+      case "load": {
+        const table = this.catalog().paytables.find((t) => t.id === req.paytableId);
+        if (!table) throw new Error(`unknown pay table '${req.paytableId}'`);
+        const rebuilt = this.select(table, false);
+        return { kind: "load", buildMs: performance.now() - t0, rebuilt };
+      }
+      case "loadCustom": {
+        const rebuilt = this.select(req.paytable, true);
+        return { kind: "loadCustom", buildMs: performance.now() - t0, rebuilt };
+      }
     }
     const engine = this.engine;
     if (!engine) throw new Error("engine not loaded");
     switch (req.kind) {
-      case "holdEvs":
-        return { kind: "holdEvs", result: holdEvs(engine, req.hand, req.bet), ms: performance.now() - t0 };
+      case "holdEvs": {
+        const cards = engine.parseHand(req.hand);
+        const evs = Array.from(engine.holdEvs(cards, req.bet, req.progressive));
+        const result: HoldEvsResult = {
+          cards: Array.from(cards, (c) => engine.cardName(c)),
+          evs,
+          best: bestHold(evs),
+        };
+        return { kind: "holdEvs", result, ms: performance.now() - t0 };
+      }
       case "optimalReturn":
-        return { kind: "optimalReturn", ret: engine.optimalReturn(req.bet), ms: performance.now() - t0 };
+        return { kind: "optimalReturn", ret: engine.optimalReturn(req.bet, req.progressive), ms: performance.now() - t0 };
     }
   }
 }

@@ -35,6 +35,21 @@ impl Ratio {
             den: s * den / g,
         }
     }
+    pub fn from_int(n: i128) -> Ratio {
+        Ratio { num: n, den: 1 }
+    }
+    pub fn add(self, o: Ratio) -> Ratio {
+        let l = lcm_i128(self.den, o.den);
+        Ratio::new(self.num * (l / self.den) + o.num * (l / o.den), l)
+    }
+    pub fn mul(self, o: Ratio) -> Ratio {
+        let g1 = gcd_i128(self.num, o.den).max(1);
+        let g2 = gcd_i128(o.num, self.den).max(1);
+        Ratio::new(
+            (self.num / g1) * (o.num / g2),
+            (self.den / g2) * (o.den / g1),
+        )
+    }
     pub fn to_f64(self) -> f64 {
         self.num as f64 / self.den as f64
     }
@@ -194,6 +209,18 @@ impl Analyzer {
             let counts = self.tables.hold_counts(&self.game, &cl.cards);
             let evs = counts.evs(pays);
             acc.add(cl.weight, &counts, &evs, policy(&cl.cards));
+        }
+        acc.finish(bet)
+    }
+
+    /// Exact return when class `i` is played with hold `holds[i]`.
+    pub fn holds_return(&self, pays: &[i64], bet: u32, holds: &[u8]) -> GameResult {
+        assert_eq!(holds.len(), self.classes.len());
+        let mut acc = Accum::new(self.tables.deck_size(), self.game.num_categories());
+        for (cl, &m) in self.classes.iter().zip(holds) {
+            let counts = self.tables.hold_counts(&self.game, &cl.cards);
+            let evs = counts.evs(pays);
+            acc.add(cl.weight, &counts, &evs, m as usize);
         }
         acc.finish(bet)
     }

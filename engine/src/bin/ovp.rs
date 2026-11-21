@@ -1,24 +1,39 @@
 //! `ovp` — command-line front end to the engine.
-//!
-//!   ovp analyze  [--paytable ID] [--bet N]
-//!   ovp holds    [--paytable ID] [--bet N] "As Ks Qs Js 2c"
-//!   ovp verify   [--paytable ID] [--samples N] [--seed N] [--full]
-//!   ovp list
 
 use ovp_engine::analysis::Analyzer;
 use ovp_engine::cards::Card;
-use ovp_engine::game::{BUILTIN_PAYTABLES, Game, PayTable, builtin_game, builtin_paytable};
+use ovp_engine::game::{
+    Game, PayTable, Wager, builtin_game, builtin_games, builtin_paytable, builtin_paytables,
+    parse_paytable, with_overrides,
+};
 use ovp_engine::verify;
 use std::process::ExitCode;
 use std::time::Instant;
 
 const DEFAULT_PAYTABLE: &str = "jacks-or-better-9-6";
-/// Informational cross-check only (SPEC §3.3): widely published figure.
-const PUBLISHED: &[(&str, f64)] = &[("jacks-or-better-9-6", 99.5439)];
+
+const USAGE: &str = "\
+usage:
+  ovp list
+  ovp analyze [TABLE] [--bet N] [--progressive CREDITS]
+  ovp analyze --all [--bet N] [--progressive CREDITS]
+  ovp holds   [TABLE] [--bet N] [--progressive CREDITS] \"As Ks Qs Js 2c\"
+  ovp verify  [TABLE | --all] [--samples N] [--seed N] [--full]
+
+TABLE selects a pay table (default jacks-or-better-9-6):
+  --paytable ID | -p ID      a preset (see `ovp list`)
+  --paytable-file FILE       a custom table (JSON with id, game, name, pays)
+  --set LINE=N               override a per-coin pay (repeatable);
+                             --set max:LINE=N sets a max-bet total
+--progressive replaces the royal's max-bet payout with CREDITS (max bet only).";
 
 struct Opts {
     paytable: String,
+    paytable_file: Option<String>,
+    overrides: Vec<(String, i64)>,
     bet: Option<u32>,
+    progressive: Option<i64>,
+    all: bool,
     samples: usize,
     seed: u64,
     full: bool,
@@ -28,7 +43,11 @@ struct Opts {
 fn parse_opts(args: &[String]) -> Result<Opts, String> {
     let mut o = Opts {
         paytable: DEFAULT_PAYTABLE.into(),
+        paytable_file: None,
+        overrides: vec![],
         bet: None,
+        progressive: None,
+        all: false,
         samples: 200,
         seed: 0x5EED,
         full: false,
@@ -39,7 +58,25 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
         let mut val = |name: &str| it.next().cloned().ok_or(format!("{name} needs a value"));
         match a.as_str() {
             "--paytable" | "-p" => o.paytable = val(a)?,
+            "--paytable-file" => o.paytable_file = Some(val(a)?),
+            "--set" => {
+                let v = val(a)?;
+                let (k, n) = v.split_once('=').ok_or("--set expects LINE=N")?;
+                let n = n
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("bad number in --set {v}"))?;
+                o.overrides.push((k.trim().to_string(), n));
+            }
             "--bet" | "-b" => o.bet = Some(val(a)?.parse().map_err(|_| "bad --bet")?),
+            "--progressive" => {
+                o.progressive = Some(
+                    val(a)?
+                        .parse()
+                        .map_err(|_| "--progressive takes whole credits")?,
+                )
+            }
+            "--all" => o.all = true,
             "--samples" => o.samples = val(a)?.parse().map_err(|_| "bad --samples")?,
             "--seed" => o.seed = val(a)?.parse().map_err(|_| "bad --seed")?,
             "--full" => o.full = true,
@@ -50,58 +87,93 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
     Ok(o)
 }
 
-fn load(o: &Opts) -> Result<(Game, PayTable, u32), String> {
-    let table = builtin_paytable(&o.paytable)?;
+/// The selected pay table (preset or file, plus overrides) and its game.
+fn load_table(o: &Opts) -> Result<(Game, PayTable), String> {
+    let base = match &o.paytable_file {
+        Some(f) => {
+            let json = std::fs::read_to_string(f).map_err(|e| format!("{f}: {e}"))?;
+            parse_paytable(&json)?
+        }
+        None => builtin_paytable(&o.paytable)?,
+    };
+    let table = with_overrides(&base, &o.overrides);
     let game = builtin_game(&table.game)?;
-    let bet = o.bet.unwrap_or(game.def.max_bet);
-    game.pays_for_bet(&table, bet)?;
-    Ok((game, table, bet))
+    game.validate_paytable(&table)?;
+    Ok((game, table))
+}
+
+fn wager(o: &Opts, game: &Game) -> Result<Wager, String> {
+    let w = Wager {
+        bet: o.bet.unwrap_or(game.def.max_bet),
+        progressive: o.progressive,
+    };
+    if w.progressive.is_some() && w.bet != game.def.max_bet {
+        eprintln!(
+            "note: the progressive only pays at max bet ({}); ignored at bet {}",
+            game.def.max_bet, w.bet
+        );
+    }
+    Ok(w)
 }
 
 fn ms(t: Instant) -> f64 {
     t.elapsed().as_secs_f64() * 1000.0
 }
 
+fn describe_wager(w: Wager) -> String {
+    match w.progressive {
+        Some(p) => format!("{} credit(s), progressive royal {p}", w.bet),
+        None => format!("{} credit(s)", w.bet),
+    }
+}
+
 fn cmd_analyze(o: &Opts) -> Result<(), String> {
-    let (game, table, bet) = load(o)?;
-    let pays = game.pays_for_bet(&table, bet)?;
+    if o.all {
+        return cmd_analyze_all(o);
+    }
+    let (game, table) = load_table(o)?;
+    let w = wager(o, &game)?;
+    let pays = game.pays(&table, w)?;
     println!("Game:      {} ({})", game.def.name, game.def.label);
     println!("Pay table: {} [{}]", table.name, table.id);
-    println!("Bet:       {bet} credit(s)");
+    println!("Bet:       {}", describe_wager(w));
 
     let t = Instant::now();
     let an = Analyzer::new(game);
     let t_build = ms(t);
     let t = Instant::now();
-    let opt = an.optimal(&pays, bet);
+    let opt = an.optimal(&pays, w.bet);
     let t_analyze = ms(t);
 
     let r = &opt.result;
     println!();
     println!("Optimal return: {:.6}%", r.ret.to_f64() * 100.0);
     println!("  exact:        {} / {}", r.ret.num, r.ret.den);
-    println!("  EV per hand:  {:.6} credits", r.ret.to_f64() * bet as f64);
-    if let Some((_, p)) = PUBLISHED.iter().find(|(id, _)| *id == table.id) {
-        if bet == an.game.def.max_bet {
-            println!("  (informational: commonly published figure {p:.4}%)");
+    println!(
+        "  EV per hand:  {:.6} credits",
+        r.ret.to_f64() * w.bet as f64
+    );
+    if let Some(p) = table.published_return_pct {
+        if w.bet == an.game.def.max_bet && w.progressive.is_none() {
+            println!("  (informational: commonly published figure {p}%)");
         }
     }
     println!();
     println!(
-        "{:<18} {:>12} {:>14}",
-        "Outcome", "Probability", "Return share"
+        "{:<20} {:>7} {:>12} {:>14}",
+        "Outcome", "Pays", "Probability", "Return share"
     );
     for (c, p) in r.category_probs.iter().enumerate() {
-        let share = p.to_f64() * pays[c] as f64 / bet as f64 * 100.0;
+        let share = p.to_f64() * pays[c] as f64 / w.bet as f64 * 100.0;
         println!(
-            "{:<18} {:>12.8} {:>13.6}%",
+            "{:<20} {:>7} {:>12.8} {:>13.6}%",
             an.game.category_name(c),
+            pays[c],
             p.to_f64(),
             share
         );
     }
 
-    // Per-hand timing on random deals.
     let mut rng = verify::Rng::new(o.seed);
     let hands: Vec<[Card; 5]> = (0..20_000).map(|_| rng.hand(an.game.deck())).collect();
     let t = Instant::now();
@@ -126,21 +198,70 @@ fn cmd_analyze(o: &Opts) -> Result<(), String> {
     Ok(())
 }
 
+fn cmd_analyze_all(o: &Opts) -> Result<(), String> {
+    let tables = builtin_paytables();
+    println!(
+        "{:<30} {:<22} {:>12} {:>12} {:>9}",
+        "Pay table", "Game (label)", "Return %", "Published %", "Time ms"
+    );
+    let t_all = Instant::now();
+    for game in builtin_games() {
+        let t = Instant::now();
+        let an = Analyzer::new(game);
+        let t_build = ms(t);
+        for table in tables.iter().filter(|t| t.game == an.game.def.id) {
+            let w = wager(o, &an.game)?;
+            let pays = an.game.pays(table, w)?;
+            let t = Instant::now();
+            let r = an.optimal(&pays, w.bet).result.ret;
+            let published = match table.published_return_pct {
+                Some(p) if w.bet == an.game.def.max_bet && w.progressive.is_none() => {
+                    format!("{p}")
+                }
+                _ => "-".into(),
+            };
+            println!(
+                "{:<30} {:<22} {:>12.6} {:>12} {:>9.0}",
+                table.id,
+                an.game.def.label,
+                r.to_f64() * 100.0,
+                published,
+                ms(t)
+            );
+        }
+        println!("{:<30} (draw tables {t_build:.0} ms)", "");
+    }
+    println!(
+        "\n{} presets, bet {}, total {:.1} s",
+        tables.len(),
+        o.bet.map_or("max".to_string(), |b| b.to_string()),
+        ms(t_all) / 1000.0
+    );
+    if o.progressive.is_some() {
+        println!(
+            "progressive royal {} credits at max bet",
+            o.progressive.unwrap()
+        );
+    }
+    Ok(())
+}
+
 fn cmd_holds(o: &Opts) -> Result<(), String> {
-    let (game, table, bet) = load(o)?;
-    let pays = game.pays_for_bet(&table, bet)?;
-    let hand_str = o.positional.join(" ");
-    let hand = game.deck().parse_hand(&hand_str)?;
+    let (game, table) = load_table(o)?;
+    let w = wager(o, &game)?;
+    let pays = game.pays(&table, w)?;
+    let hand = game.deck().parse_hand(&o.positional.join(" "))?;
     let an = Analyzer::new(game);
     let deck = an.game.deck();
     let evs = an.hold_evs(&hand, &pays);
     let mut order: Vec<usize> = (0..32).collect();
     order.sort_by(|&a, &b| evs.cmp(b, a).then(a.cmp(&b)));
     println!(
-        "{} — {} {}, bet {bet}",
+        "{} — {} {}, bet {}",
         deck.hand_name(&hand),
         an.game.def.name,
-        table.name
+        table.name,
+        describe_wager(w)
     );
     for m in order {
         let held: Vec<String> = (0..5)
@@ -170,13 +291,15 @@ fn report(name: &str, r: verify::Check, t: Instant) -> bool {
     }
 }
 
-fn cmd_verify(o: &Opts) -> Result<bool, String> {
-    let (game, table, bet) = load(o)?;
-    let pays = game.pays_for_bet(&table, bet)?;
-    println!(
-        "Verification suite (SPEC §3.3) — {} {}, bet {bet}\n",
-        game.def.name, table.name
-    );
+fn verify_game(
+    o: &Opts,
+    game: Game,
+    table: &PayTable,
+    all_tables: &[PayTable],
+) -> Result<bool, String> {
+    let bet = game.def.max_bet;
+    let pays = game.pays_for_bet(table, bet)?;
+    println!("== {} — {} (bet {bet})\n", game.def.name, table.name);
     let reduced = verify::reduced_games(&game);
     let an = Analyzer::new(game);
     let mut ok = true;
@@ -205,27 +328,54 @@ fn cmd_verify(o: &Opts) -> Result<bool, String> {
             g.deck().ranks().len(),
             g.deck().suits()
         );
-        let brute = g.deck().size() <= 21;
+        let brute = g.deck().size() <= verify::BRUTE_MAX_DECK;
         let ran = Analyzer::new(g);
         let t = Instant::now();
-        ok &= report(
-            &name,
-            verify::probabilities_sum_to_one(&ran, &pays, bet)
-                .and_then(|_| verify::fast_matches_brute_force(&ran, 50, o.seed + 2))
-                .and_then(|_| verify::symmetry_matches_full(&ran, &pays, bet, brute)),
-            t,
-        );
+        let r = verify::probabilities_sum_to_one(&ran, &pays, bet)
+            .and_then(|_| verify::fast_matches_brute_force(&ran, 50, o.seed + 2))
+            .and_then(|_| verify::symmetry_matches_full(&ran, &pays, bet, brute));
+        ok &= report(&name, r, t);
     }
     if o.full {
         let t = Instant::now();
         ok &= report(
-            "symmetry == no symmetry, full 52-card deck",
+            "symmetry == no symmetry, full deck",
             verify::symmetry_matches_full(&an, &pays, bet, false),
             t,
         );
     }
+    for t in all_tables {
+        let start = Instant::now();
+        ok &= report(
+            &format!("bet size & progressive: {}", t.id),
+            verify::wager_checks(&an, t),
+            start,
+        );
+    }
+    println!();
+    Ok(ok)
+}
+
+fn cmd_verify(o: &Opts) -> Result<bool, String> {
+    println!("Verification suite (SPEC §3.3)\n");
+    let mut ok = true;
+    if o.all {
+        let tables = builtin_paytables();
+        for game in builtin_games() {
+            let mine: Vec<PayTable> = tables
+                .iter()
+                .filter(|t| t.game == game.def.id)
+                .cloned()
+                .collect();
+            let first = mine.first().ok_or("game with no tables")?.clone();
+            ok &= verify_game(o, game, &first, &mine)?;
+        }
+    } else {
+        let (game, table) = load_table(o)?;
+        ok &= verify_game(o, game, &table, std::slice::from_ref(&table))?;
+    }
     println!(
-        "\n{}",
+        "{}",
         if ok {
             "ALL CHECKS PASSED"
         } else {
@@ -235,20 +385,29 @@ fn cmd_verify(o: &Opts) -> Result<bool, String> {
     Ok(ok)
 }
 
-fn usage() -> &'static str {
-    "usage:\n  ovp analyze [--paytable ID] [--bet N]\n  ovp holds   [--paytable ID] [--bet N] \"As Ks Qs Js 2c\"\n  ovp verify  [--paytable ID] [--samples N] [--seed N] [--full]\n  ovp list"
+fn cmd_list() {
+    let tables = builtin_paytables();
+    for g in builtin_games() {
+        println!(
+            "{} — {} (label \"{}\", max bet {})",
+            g.def.id, g.def.name, g.def.label, g.def.max_bet
+        );
+        for t in tables.iter().filter(|t| t.game == g.def.id) {
+            println!("    {:<30} {}", t.id, t.name);
+        }
+    }
 }
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(cmd) = args.first() else {
-        eprintln!("{}", usage());
+        eprintln!("{USAGE}");
         return ExitCode::from(2);
     };
     let o = match parse_opts(&args[1..]) {
         Ok(o) => o,
         Err(e) => {
-            eprintln!("error: {e}\n{}", usage());
+            eprintln!("error: {e}\n{USAGE}");
             return ExitCode::from(2);
         }
     };
@@ -257,12 +416,14 @@ fn main() -> ExitCode {
         "holds" => cmd_holds(&o).map(|_| true),
         "verify" => cmd_verify(&o),
         "list" => {
-            for (id, _) in BUILTIN_PAYTABLES {
-                println!("{id}");
-            }
+            cmd_list();
             Ok(true)
         }
-        _ => Err(format!("unknown command '{cmd}'\n{}", usage())),
+        "help" | "--help" | "-h" => {
+            println!("{USAGE}");
+            Ok(true)
+        }
+        _ => Err(format!("unknown command '{cmd}'\n{USAGE}")),
     };
     match res {
         Ok(true) => ExitCode::SUCCESS,

@@ -8,7 +8,7 @@ A free, open-source video poker trainer. Not a gambling product. See
 | Path | What |
 |---|---|
 | `engine/` | Rust engine (no UI deps). Library + `ovp` CLI; compiles to WebAssembly. |
-| `data/` | Game definitions and pay tables (JSON). Compiled into the engine. |
+| `data/` | Game definitions and pay table libraries (JSON). Every file is compiled into the engine automatically; adding a preset is data entry. |
 | `app/` | TypeScript + Vite browser app. The engine runs in a Web Worker. |
 | `docs/` | Progress notes per milestone. |
 
@@ -23,9 +23,14 @@ Rust (stable) with the `wasm32-unknown-unknown` target, `wasm-pack`, Node 22+.
 cd engine
 cargo test                          # unit tests + verification suite
 cargo test -- --ignored             # also the full 52-card no-symmetry check
+cargo run --release --bin ovp -- list               # games and preset pay tables
 cargo run --release --bin ovp -- analyze            # 9/6 Jacks or Better, max bet
+cargo run --release --bin ovp -- analyze --all      # every preset
+cargo run --release --bin ovp -- analyze -p double-bonus-9-6 --bet 3
+cargo run --release --bin ovp -- analyze --progressive 6000
+cargo run --release --bin ovp -- analyze --set full_house=8 --set flush=5   # custom variant
 cargo run --release --bin ovp -- holds "Js Ts 9s 2h 2d"
-cargo run --release --bin ovp -- verify --full      # whole §3.3 suite
+cargo run --release --bin ovp -- verify --all       # §3.3 suite for every game
 
 # App
 cd app

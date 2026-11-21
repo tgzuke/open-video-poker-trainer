@@ -1,10 +1,10 @@
 // Web Worker: owns the WebAssembly engine so the UI thread never blocks.
-import init, { Engine } from "../wasm/ovp_engine.js";
+import init, { Engine, catalog } from "../wasm/ovp_engine.js";
 import { EngineHost } from "./core";
 import type { Envelope, Request, WorkerReply } from "./protocol";
 
 const ready = init();
-const host = new EngineHost((id) => Engine.builtin(id));
+const host = new EngineHost({ catalog, builtin: (id) => Engine.builtin(id) });
 
 self.onmessage = async (ev: MessageEvent<Envelope<Request>>) => {
   const { id, body } = ev.data;

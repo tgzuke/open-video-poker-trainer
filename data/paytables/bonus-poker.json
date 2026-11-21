@@ -1,0 +1,8 @@
+{
+  "game": "bonus-poker",
+  "tables": [
+    {"id": "bonus-poker-8-5", "name": "8/5", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 80, "four_2_4": 40, "four_5_k": 25, "full_house": 8, "flush": 5, "straight": 4, "three_of_a_kind": 3, "two_pair": 2, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}, "published_return_pct": 99.166},
+    {"id": "bonus-poker-7-5", "name": "7/5", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 80, "four_2_4": 40, "four_5_k": 25, "full_house": 7, "flush": 5, "straight": 4, "three_of_a_kind": 3, "two_pair": 2, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}, "published_return_pct": 98.0147},
+    {"id": "bonus-poker-6-5", "name": "6/5", "pays": {"royal_flush": 250, "straight_flush": 50, "four_aces": 80, "four_2_4": 40, "four_5_k": 25, "full_house": 6, "flush": 5, "straight": 4, "three_of_a_kind": 3, "two_pair": 2, "jacks_or_better": 1}, "max_bet_pays": {"royal_flush": 4000}, "published_return_pct": 96.8687}
+  ]
+}

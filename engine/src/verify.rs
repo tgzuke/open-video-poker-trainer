@@ -2,10 +2,11 @@
 //!
 //! Each check returns `Ok(detail)` or `Err(description of the first failure)`.
 
+use crate::analysis::Ratio;
 use crate::analysis::{Analyzer, optimal_brute_force};
 use crate::cards::{Card, Deck};
 use crate::draw::{NUM_HOLDS, brute_force_hold_counts};
-use crate::game::Game;
+use crate::game::{Game, PayTable, Wager};
 
 /// Small deterministic PRNG (SplitMix64) so runs are reproducible.
 pub struct Rng(u64);
@@ -199,15 +200,109 @@ pub fn symmetry_matches_full(an: &Analyzer, pays: &[i64], bet: u32, brute: bool)
     Ok(detail)
 }
 
-/// Reduced decks used for the exhaustive cross-checks.
+/// Reduced decks used for the exhaustive cross-checks. Fully brute-forcing
+/// (no tables) is affordable up to `BRUTE_MAX_DECK` cards.
+pub const BRUTE_MAX_DECK: usize = 20;
+
 pub fn reduced_games(base: &Game) -> Vec<Game> {
     let decks = [
-        Deck::new(vec![10, 11, 12, 13, 14], 4).unwrap(), // 20 cards
-        Deck::new(vec![2, 3, 4, 5, 11, 13, 14], 3).unwrap(), // 21 cards, 3 suits, wheel possible
+        Deck::new(vec![10, 11, 12, 13, 14], 4).unwrap(), // 20 cards: royals, high quads
+        Deck::new(vec![2, 3, 4, 5, 14], 4).unwrap(), // 20 cards: wheel, aces/low quads + kickers
+        Deck::new(vec![2, 3, 4, 5, 11, 13, 14], 3).unwrap(), // 21 cards, 3 suits
         Deck::new(vec![8, 9, 10, 11, 12, 13, 14], 4).unwrap(), // 28 cards
     ];
     decks
         .into_iter()
         .map(|d| Game::with_deck(base.def.clone(), d).unwrap())
         .collect()
+}
+
+/// Bet size and progressive amount change results correctly:
+/// - below max bet every pay is per-coin × bet, so the return is identical;
+/// - a progressive equal to the base max-bet royal changes nothing, and a
+///   progressive below max bet is ignored;
+/// - raising the progressive by Δ, with the old optimal holds kept, raises
+///   the return by exactly P(royal) × Δ / bet; re-optimising can only add more,
+///   and the royal can only become more likely.
+pub fn wager_checks(an: &Analyzer, table: &PayTable) -> Check {
+    let g = &an.game;
+    let max = g.def.max_bet;
+    let pays = |w: Wager| g.pays(table, w);
+    let base_low = an.optimal(&pays(Wager::bet(1))?, 1).result.ret;
+    for bet in 2..max {
+        let r = an.optimal(&pays(Wager::bet(bet))?, bet).result.ret;
+        if r != base_low {
+            return Err(format!(
+                "bet {bet} return {r:?} differs from bet 1 {base_low:?}"
+            ));
+        }
+    }
+    let base_pays = pays(Wager::bet(max))?;
+    let base = an.optimal(&base_pays, max);
+    let Some(line) = g.def.progressive_line.as_deref() else {
+        return Ok(format!(
+            "bets 1..{} identical; no progressive line",
+            max - 1
+        ));
+    };
+    let li = g.line_index(line).unwrap();
+    let base_amount = base_pays[li];
+    let same = an.optimal(
+        &pays(Wager {
+            bet: max,
+            progressive: Some(base_amount),
+        })?,
+        max,
+    );
+    if same.result.ret != base.result.ret {
+        return Err("progressive equal to the base amount changed the return".into());
+    }
+    if max > 1
+        && pays(Wager {
+            bet: max - 1,
+            progressive: Some(base_amount * 3),
+        })? != pays(Wager::bet(max - 1))?
+    {
+        return Err("progressive changed pays below max bet".into());
+    }
+    let mut prev_ret = base.result.ret;
+    let mut prev_p = base.result.category_probs[li];
+    let mut detail = Vec::new();
+    for delta in [1i64, 500, 2_000, 10_000] {
+        let amount = base_amount + delta;
+        let new_pays = pays(Wager {
+            bet: max,
+            progressive: Some(amount),
+        })?;
+        let fixed = an.holds_return(&new_pays, max, &base.best_holds).ret;
+        let expect = base
+            .result
+            .ret
+            .add(base.result.category_probs[li].mul(Ratio::new(delta as i128, max as i128)));
+        if fixed != expect {
+            return Err(format!(
+                "progressive {amount}: fixed-hold return {fixed:?}, expected {expect:?}"
+            ));
+        }
+        let opt = an.optimal(&new_pays, max).result;
+        let (r, p) = (opt.ret, opt.category_probs[li]);
+        if r.to_f64() < fixed.to_f64()
+            || r.to_f64() <= prev_ret.to_f64()
+            || p.to_f64() < prev_p.to_f64()
+        {
+            return Err(format!(
+                "progressive {amount}: return or royal frequency went the wrong way"
+            ));
+        }
+        detail.push(format!("{amount}: {:.4}%", r.to_f64() * 100.0));
+        prev_ret = r;
+        prev_p = p;
+    }
+    Ok(format!(
+        "bets 1..{} identical ({:.4}%), max bet {:.4}%; progressive {}",
+        max - 1,
+        base_low.to_f64() * 100.0,
+        base.result.ret.to_f64() * 100.0,
+        detail.join(", ")
+    ))
 }
