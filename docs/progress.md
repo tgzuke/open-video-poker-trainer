@@ -45,16 +45,15 @@ commonly published 99.54%.
 (mostly the 500-hand brute-force comparison).
 
 ### Notes / open questions
-- Tie-break for exactly equal hold EVs is currently "lowest mask". It doesn't
-  affect returns; the strategy layer (M3) may want a more meaningful rule.
+- Exactly tied holds: the owner decided (after review) that they are
+  equivalent choices; SPEC §3.1 updated. The engine still reports one
+  representative best hold ("lowest mask"); M3 will expose the full tie set.
 - Multi-hand deals and carried state (Ultimate X etc.) are not modelled yet:
   the engine API is per-hand and stateless, so the game model added in M2/M4
   can wrap it. Wild cards and jokers will need evaluator extensions (v1.x).
 - Dev-only dependency note: Vite pulls in `lightningcss` (MPL-2.0) as a build
   tool; it is not shipped. All shipped/engine dependencies are MIT/Apache.
-- The browser shell was verified by `vite build` and by running the wasm
-  through the same worker request handler in Node; it has not been eyeballed
-  in a browser yet.
+- Browser shell: confirmed working in a browser by the owner (EV table shows).
 
 ### For playtesting
 Nothing yet (no game UI until M4).

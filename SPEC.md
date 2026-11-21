@@ -50,6 +50,7 @@ Real money, purchases, comps or player tracking. No copyrighted or trademarked a
 - **Full-game analysis.** Use suit symmetry to reduce the 2,598,960 possible deals to about 134,459 distinct classes, then compute:
   - optimal-play return
   - the optimal hold for every class
+- **Tied holds.** When two or more holds have exactly equal EV (compared as exact fractions), they are **equivalent choices**. "Optimal play" for a hand is the *set* of all max-EV holds, and any member of it costs 0 EV. Returns never depend on which tied hold is picked. How the strategy layer, analyzer and trainer use these sets is decided in milestone 3.
   - the exact return of any given strategy
 
   Never use simulation to grade a strategy. The calculation is exact.
@@ -81,7 +82,7 @@ Published returns (e.g., 9/6 Jacks or Better) may be logged as an informational 
 A strategy is a **ranked hold list**, the traditional human-readable format, but machine-precise.
 - Each rule is a **hold pattern**: "Four to a Royal Flush", "Suited QJ", "3 to a Straight Flush, type 2", "Two Pair", "Unsuited KQJ", and so on. Optional **qualifiers** cover penalty cards and exceptions ("…with no flush penalty", "…unless holding a 10").
 - **Evaluation:** for a dealt hand, the strategy goes down the list. The first rule that matches some subset of the hand decides the hold.
-- **Determinism:** if one rule can match more than one subset (e.g., two choices of "two high cards"), the rule must define a tie-break, or the analyzer flags it as **ambiguous**.
+- **Determinism:** if one rule can match more than one subset (e.g., two choices of "two high cards"), the rule must define a tie-break, or the analyzer flags it as **ambiguous**. A rule that matches several subsets which are exactly tied in EV (§3.1, e.g. suit-symmetric choices) is not ambiguous: the choices are equivalent.
 - **Completeness:** the analyzer checks that every one of the ~134k classes resolves to exactly one hold. The final line is always "Discard everything", and the analyzer confirms there are no undefined or ambiguous hands.
 - The format is plain text or JSON in the repo, readable by humans and diff-friendly.
 
@@ -114,6 +115,7 @@ A separate screen, outside the game flow, showing how the strategy for pay table
 
 ### 5.1 Checking modes
 - **Strategy-based (default):** a play is right or wrong according to the loaded strategy. There are no ties.
+- In both modes, a hold that is exactly tied in EV with the expected hold (§3.1) counts as the same play.
 - **Pure EV:** a play is right if its EV is within a **grace margin** of the best hold. Default: 0.05 credits at max bet, scaled with bet size, adjustable in Settings. Tune after playtesting.
 
 ### 5.2 Trainer modes
