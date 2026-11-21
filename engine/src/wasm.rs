@@ -169,7 +169,8 @@ impl Engine {
     }
 
     /// Generates one tier ("beginner" | "intermediate" | "expert"); `seed`
-    /// is the lower tier's text (or empty). Returns the strategy file text.
+    /// is the lower tier's text (or empty); `max_lines` overrides the tier's
+    /// line cap. Returns the strategy file text.
     #[wasm_bindgen(js_name = generateStrategy)]
     pub fn generate_strategy(
         &self,
@@ -177,8 +178,12 @@ impl Engine {
         bet: u32,
         progressive_royal: Option<f64>,
         seed: &str,
+        max_lines: Option<u32>,
     ) -> Result<String, JsError> {
-        let tier = strategy::tier(tier).map_err(js)?;
+        let mut tier = strategy::tier(tier).map_err(js)?;
+        if let Some(n) = max_lines {
+            tier = tier.with_max_lines(n as usize).map_err(js)?;
+        }
         let pays = self.pays_i64(bet, progressive_royal)?;
         let seed = if seed.trim().is_empty() {
             None

@@ -56,6 +56,20 @@ pub const TIERS: [Tier; 3] = [
     },
 ];
 
+/// Allowed range for a tunable line cap (lines include "discard everything").
+pub const MIN_LINES: usize = 3;
+pub const MAX_LINES: usize = 200;
+
+impl Tier {
+    /// The same tier with a different line cap (for custom strategies).
+    pub fn with_max_lines(self, max_lines: usize) -> Result<Tier, String> {
+        if !(MIN_LINES..=MAX_LINES).contains(&max_lines) {
+            return Err(format!("line cap must be {MIN_LINES}..={MAX_LINES}"));
+        }
+        Ok(Tier { max_lines, ..self })
+    }
+}
+
 pub fn tier(name: &str) -> Result<Tier, String> {
     TIERS
         .iter()
@@ -1076,7 +1090,7 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seed: Option<&Strategy
     let mut rules: Vec<Rule> = s.order.iter().map(|&r| table.rules[r as usize]).collect();
     rules.push(Rule::new(Pattern::Nothing));
     Generated {
-        strategy: super::tidy(&Strategy { rules }),
+        strategy: super::natural_order(an, pays, &super::tidy(&Strategy { rules })),
         loss: s.total,
         candidates: table.rules.len(),
         entries: table.entries(),

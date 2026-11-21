@@ -6,7 +6,7 @@ pub mod generate;
 pub mod rule;
 
 pub use evaluate::{Play, Report, evaluate, matching_rules, play};
-pub use generate::{TIERS, Tier, generate, generate_tiers, tier};
+pub use generate::{MAX_LINES, MIN_LINES, TIERS, Tier, generate, generate_tiers, tier};
 pub use rule::{Rule, Strategy};
 
 /// Removes pat hands from a combined pat line when an earlier unqualified
@@ -110,4 +110,78 @@ pub fn render_file(strategy: &Strategy, report: &Report, meta: &FileMeta) -> Str
         ));
     }
     s
+}
+
+/// Reorders rules for reading without changing play. Two neighbouring rules
+/// can be swapped freely unless some hand decided by one of them is also
+/// matched by the other (e.g. a full house matches both "three of a kind"
+/// and "pair J-A", but an earlier pat line decides it). Among such rules, the one whose
+/// holds are worth more on average goes first, so e.g. "three of a kind"
+/// reads above "pair J-A" even though they never compete.
+pub fn natural_order(
+    an: &crate::analysis::Analyzer,
+    pays: &[i64],
+    strategy: &Strategy,
+) -> Strategy {
+    use features::{RuleHit, apply_rule, high_min, subset_features};
+    let n = strategy.rules.len();
+    let hi = high_min(&an.game);
+    // conflict[a][b]: some hand matches both rules.
+    let mut conflict = vec![vec![false; n]; n];
+    let mut ev_sum = vec![0.0f64; n];
+    let mut w_sum = vec![0.0f64; n];
+    let mut hits = Vec::with_capacity(n);
+    for cl in &an.classes {
+        let feats = subset_features(&an.game, &cl.cards, hi);
+        hits.clear();
+        let mut fired: Option<(usize, u8)> = None;
+        for (i, r) in strategy.rules.iter().enumerate() {
+            if let RuleHit::Hold { mask, .. } = apply_rule(r, &feats) {
+                hits.push(i);
+                fired.get_or_insert((i, mask));
+            }
+        }
+        // Only the deciding rule matters: swapping two adjacent rules changes
+        // this hand only if one of them decides it and the other matches too.
+        // Safe swaps never change any hand's deciding rule, so this stays
+        // valid throughout the sort.
+        if let Some(&f) = hits.first() {
+            for &b in &hits[1..] {
+                conflict[f][b] = true;
+                conflict[b][f] = true;
+            }
+        }
+        if let Some((i, m)) = fired {
+            let evs = an.hold_evs(&cl.cards, pays);
+            ev_sum[i] += cl.weight as f64 * evs.ev(m as usize);
+            w_sum[i] += cl.weight as f64;
+        }
+    }
+    let key: Vec<f64> = (0..n)
+        .map(|i| {
+            if w_sum[i] > 0.0 {
+                ev_sum[i] / w_sum[i]
+            } else {
+                f64::NEG_INFINITY
+            }
+        })
+        .collect();
+    let mut order: Vec<usize> = (0..n).collect();
+    // Bubble sort restricted to swaps of non-conflicting neighbours.
+    loop {
+        let mut swapped = false;
+        for i in 0..n.saturating_sub(1) {
+            let (a, b) = (order[i], order[i + 1]);
+            if !conflict[a][b] && key[b] > key[a] + 1e-12 {
+                order.swap(i, i + 1);
+                swapped = true;
+            }
+        }
+        if !swapped {
+            break;
+        }
+    }
+    Strategy {
+        rules: order.into_iter().map(|i| strategy.rules[i]).collect(),
+    }
 }

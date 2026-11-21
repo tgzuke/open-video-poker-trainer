@@ -329,3 +329,44 @@ fn tidy_removes_unreachable_pat_hands() {
     let s2 = Strategy::parse("flush\nstraight\nflush, straight\ndiscard everything\n").unwrap();
     assert_eq!(strategy::tidy(&s2).rules.len(), 3);
 }
+
+/// The line cap is tunable: a longer beginner list is allowed, stays within
+/// its cap, keeps beginner's no-qualifier rule, and can only lose less.
+#[test]
+fn tunable_line_cap() {
+    let base = builtin_game("double-double-bonus").unwrap();
+    let table = builtin_paytable("double-double-bonus-9-6").unwrap();
+    let pays = base.pays_for_bet(&table, 5).unwrap();
+    let g = verify::reduced_games(&base).into_iter().nth(1).unwrap();
+    let an = Analyzer::new(g);
+    let t15 = strategy::tier("beginner").unwrap();
+    let t20 = t15.with_max_lines(20).unwrap();
+    let a = strategy::generate(&an, &pays, &t15, None);
+    let b = strategy::generate(&an, &pays, &t20, Some(&a.strategy));
+    assert!(b.strategy.rules.len() <= 20);
+    check_tier_qualifiers("beginner", &b.strategy.rules);
+    assert!(b.loss <= a.loss + 1e-12);
+    assert!(strategy::evaluate(&an, &pays, 5, &b.strategy).is_complete());
+    assert!(t15.with_max_lines(2).is_err() && t15.with_max_lines(201).is_err());
+}
+
+/// Reading order never changes play, and on the shipped DDB 8/5 beginner
+/// strategy "three of a kind" reads above "pair J-A".
+#[test]
+fn natural_order_keeps_play() {
+    let an = Analyzer::new(builtin_game("double-double-bonus").unwrap());
+    let table = builtin_paytable("double-double-bonus-8-5").unwrap();
+    let pays = an.game.pays_for_bet(&table, 5).unwrap();
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../strategies/double-double-bonus-8-5/beginner.txt");
+    let s = Strategy::parse(&std::fs::read_to_string(dir).unwrap()).unwrap();
+    let names: Vec<String> = s.rules.iter().map(|r| r.to_string()).collect();
+    let pos = |n: &str| names.iter().position(|x| x == n).unwrap();
+    assert!(pos("three of a kind") < pos("pair J-A"));
+    // Re-running natural_order keeps every hold.
+    let o = strategy::natural_order(&an, &pays, &s);
+    assert_eq!(
+        strategy::evaluate(&an, &pays, 5, &o).holds,
+        strategy::evaluate(&an, &pays, 5, &s).holds
+    );
+}

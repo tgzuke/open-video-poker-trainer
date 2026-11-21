@@ -73,5 +73,10 @@ describe("generator in wasm", () => {
       expect(report.lossCredits).toBeLessThanOrEqual(prev + 1e-12);
       prev = report.lossCredits;
     }
+    // Tunable line cap.
+    const capped = as(small.handle({ kind: "generateStrategy", tier: "beginner", bet: 5, seed: "", maxLines: 8 }), "generateStrategy").text;
+    expect(capped.split("\n").filter((l) => l.trim() && !l.startsWith("#")).length).toBeLessThanOrEqual(8);
+    expect(capped).toContain("# tier: beginner (max 8 lines)");
+    expect(() => small.handle({ kind: "generateStrategy", tier: "beginner", bet: 5, seed: "", maxLines: 2 })).toThrow(/line cap/);
   });
 });

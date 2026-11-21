@@ -20,10 +20,10 @@ usage:
   ovp analyze --all [--bet N] [--progressive CREDITS]
   ovp holds   [TABLE] [--bet N] [--progressive CREDITS] \"As Ks Qs Js 2c\"
   ovp verify  [TABLE | --all] [--samples N] [--seed N] [--full]
-  ovp strategy generate [TABLE] [--bet N] [--progressive C] --tier T [--out FILE]
+  ovp strategy generate [TABLE] [--bet N] [--progressive C] --tier T [--max-lines N] [--out FILE]
   ovp strategy generate --all [--out DIR]       every preset × every tier
   ovp strategy eval FILE [TABLE] [--bet N] [--progressive C]
-  ovp strategy tidy FILE...                     drop unreachable pat hands (play unchanged)
+  ovp strategy tidy FILE...                     tidy + reading order (play unchanged)
   ovp strategy play FILE [TABLE] \"As Ks Qs Js 2c\"
 
 TABLE selects a pay table (default jacks-or-better-9-6):
@@ -44,6 +44,7 @@ struct Opts {
     seed: u64,
     full: bool,
     tier: Option<String>,
+    max_lines: Option<usize>,
     out: Option<String>,
     positional: Vec<String>,
 }
@@ -60,6 +61,7 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
         seed: 0x5EED,
         full: false,
         tier: None,
+        max_lines: None,
         out: None,
         positional: vec![],
     };
@@ -91,6 +93,7 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
             "--seed" => o.seed = val(a)?.parse().map_err(|_| "bad --seed")?,
             "--full" => o.full = true,
             "--tier" => o.tier = Some(val(a)?),
+            "--max-lines" => o.max_lines = Some(val(a)?.parse().map_err(|_| "bad --max-lines")?),
             "--out" | "-o" => o.out = Some(val(a)?),
             s if s.starts_with('-') => return Err(format!("unknown option {s}")),
             s => o.positional.push(s.to_string()),
@@ -490,7 +493,10 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
         "generate" => {
             let (game, table) = load_table(o)?;
             let w = wager(o, &game)?;
-            let tier = strategy::tier(o.tier.as_deref().ok_or("--tier is required")?)?;
+            let mut tier = strategy::tier(o.tier.as_deref().ok_or("--tier is required")?)?;
+            if let Some(n) = o.max_lines {
+                tier = tier.with_max_lines(n)?;
+            }
             let an = Analyzer::new(game);
             // Lower tiers seed the requested one.
             let upto: Vec<strategy::Tier> = strategy::TIERS
@@ -586,7 +592,7 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
                 let pays = game.pays_for_bet(&table, bet)?;
                 let an = Analyzer::new(game);
                 let old = Strategy::parse(&text)?;
-                let new = strategy::tidy(&old);
+                let new = strategy::natural_order(&an, &pays, &strategy::tidy(&old));
                 let r_old = strategy::evaluate(&an, &pays, bet, &old);
                 let r_new = strategy::evaluate(&an, &pays, bet, &new);
                 if r_old.ret != r_new.ret || r_old.holds != r_new.holds || !r_new.is_complete() {

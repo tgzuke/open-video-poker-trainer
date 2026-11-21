@@ -11,19 +11,19 @@
 three of a kind A                                        # fires   0.1736%  wrong   0.0000%  loss 0.000000
 royal flush, straight flush, four of a kind, full house  # fires   0.1585%  wrong   0.0000%  loss 0.000000
 4 to a royal                                             # fires   0.0360%  wrong   0.0000%  loss 0.000000
+three of a kind                                          # fires   1.9503%  wrong   0.0000%  loss 0.000000
 flush, straight                                          # fires   0.5802%  wrong   0.0000%  loss 0.000000
 4 to a straight flush fp=0                               # fires   0.1958%  wrong   0.0000%  loss 0.000000
 pair A                                                   # fires   3.9782%  wrong   0.0000%  loss 0.000000
 two pair                                                 # fires   4.0225%  wrong   0.0000%  loss 0.000000
 pair J-A                                                 # fires   9.7377%  wrong   0.0568%  loss 0.000050
+3 to a royal fp=0                                        # fires   0.7244%  wrong   0.0000%  loss 0.000000
 3 to a royal fp>=1                                       # fires   0.3666%  wrong   0.1219%  loss 0.000113
 4 to a flush                                             # fires   3.2902%  wrong   0.0000%  loss 0.000000
-three of a kind                                          # fires   1.9503%  wrong   0.0000%  loss 0.000000
-3 to a royal fp=0                                        # fires   0.7244%  wrong   0.0000%  loss 0.000000
 pair                                                     # fires  28.2187%  wrong   0.0794%  loss 0.000193
 4 to a straight w=2                                      # fires   2.2717%  wrong   0.0000%  loss 0.000000
-3 to a straight flush w=3 fp=0                           # fires   0.2715%  wrong   0.0000%  loss 0.000000
 3 to a straight flush h=2 fp=0                           # fires   0.2299%  wrong   0.0000%  loss 0.000000
+3 to a straight flush w=3 fp=0                           # fires   0.2715%  wrong   0.0000%  loss 0.000000
 4 to a straight w=1 h=4                                  # fires   0.2456%  wrong   0.0000%  loss 0.000000
 2 high cards suited prefer low                           # fires   6.3630%  wrong   0.1053%  loss 0.000035
 3 to a straight flush w=2 fp=0                           # fires   0.7415%  wrong   0.0000%  loss 0.000000

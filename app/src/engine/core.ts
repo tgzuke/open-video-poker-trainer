@@ -76,7 +76,7 @@ export class EngineHost {
         return { kind: "evaluateStrategy", report, ms: performance.now() - t0 };
       }
       case "generateStrategy": {
-        const text = engine.generateStrategy(req.tier, req.bet, req.progressive, req.seed);
+        const text = engine.generateStrategy(req.tier, req.bet, req.progressive, req.seed, req.maxLines);
         return { kind: "generateStrategy", text, ms: performance.now() - t0 };
       }
       case "playStrategy": {

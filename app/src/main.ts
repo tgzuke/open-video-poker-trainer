@@ -118,7 +118,10 @@ async function generateStrategy() {
     // Lower tiers seed the requested one (as the CLI does).
     for (const tier of TIERS.slice(0, TIERS.indexOf(want) + 1)) {
       $("strategy-status").textContent = `generating ${tier}… (${((performance.now() - t0) / 1000).toFixed(0)} s)`;
-      seed = (await engine.request({ kind: "generateStrategy", tier, seed, ...wager() })).text;
+      // The line cap applies to the requested tier; lower tiers keep theirs.
+      const raw = $<HTMLInputElement>("max-lines").value.trim();
+      const maxLines = tier === want && raw !== "" ? Number(raw) : undefined;
+      seed = (await engine.request({ kind: "generateStrategy", tier, seed, maxLines, ...wager() })).text;
     }
     $("strategy-status").textContent = `generated in ${((performance.now() - t0) / 1000).toFixed(1)} s (in the worker)`;
     await showStrategy(seed, `Generated ${want}`);

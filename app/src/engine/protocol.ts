@@ -14,7 +14,7 @@ export type Request =
   | ({ kind: "holdEvs"; hand: string } & WagerMsg)
   | ({ kind: "optimalReturn" } & WagerMsg)
   | ({ kind: "evaluateStrategy"; text: string } & WagerMsg)
-  | ({ kind: "generateStrategy"; tier: Tier; seed: string } & WagerMsg)
+  | ({ kind: "generateStrategy"; tier: Tier; seed: string; maxLines?: number } & WagerMsg)
   | { kind: "playStrategy"; text: string; hand: string };
 
 export type Tier = "beginner" | "intermediate" | "expert";

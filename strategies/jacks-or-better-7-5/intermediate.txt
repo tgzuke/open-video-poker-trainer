@@ -11,22 +11,22 @@
 royal flush                     # fires   0.0002%  wrong   0.0000%  loss 0.000000
 straight flush                  # fires   0.0014%  wrong   0.0000%  loss 0.000000
 four of a kind                  # fires   0.0240%  wrong   0.0000%  loss 0.000000
-full house                      # fires   0.1441%  wrong   0.0000%  loss 0.000000
 4 to a royal                    # fires   0.0360%  wrong   0.0000%  loss 0.000000
+full house                      # fires   0.1441%  wrong   0.0000%  loss 0.000000
 flush                           # fires   0.1905%  wrong   0.0000%  loss 0.000000
-straight                        # fires   0.3897%  wrong   0.0000%  loss 0.000000
-two pair                        # fires   4.7539%  wrong   0.0000%  loss 0.000000
-4 to a straight flush           # fires   0.1958%  wrong   0.0000%  loss 0.000000
-pair J-A                        # fires  12.9846%  wrong   0.0000%  loss 0.000000
 three of a kind                 # fires   2.1128%  wrong   0.0000%  loss 0.000000
+straight                        # fires   0.3897%  wrong   0.0000%  loss 0.000000
+4 to a straight flush           # fires   0.1958%  wrong   0.0000%  loss 0.000000
+two pair                        # fires   4.7539%  wrong   0.0000%  loss 0.000000
+pair J-A                        # fires  12.9846%  wrong   0.0000%  loss 0.000000
 3 to a royal                    # fires   1.0911%  wrong   0.0000%  loss 0.000000
 4 to a flush                    # fires   3.2902%  wrong   0.0000%  loss 0.000000
 pair                            # fires  28.2187%  wrong   0.0365%  loss 0.000040
 4 to a straight w=2             # fires   2.2717%  wrong   0.0000%  loss 0.000000
 3 to a straight flush h=2       # fires   0.2299%  wrong   0.0028%  loss 0.000002
+3 to a straight flush w=3       # fires   0.2715%  wrong   0.0069%  loss 0.000003
 4 to a straight w=1 h=4         # fires   0.2456%  wrong   0.0000%  loss 0.000000
 3 to a straight flush w=2 h=1   # fires   0.1454%  wrong   0.0000%  loss 0.000000
-3 to a straight flush w=3       # fires   0.2715%  wrong   0.0069%  loss 0.000003
 2 high cards suited prefer low  # fires   6.3602%  wrong   0.0000%  loss 0.000000
 4 to a straight w=1 h=3         # fires   0.4386%  wrong   0.0000%  loss 0.000000
 3 to a straight w=2 h=3         # fires   0.3103%  wrong   0.0000%  loss 0.000000

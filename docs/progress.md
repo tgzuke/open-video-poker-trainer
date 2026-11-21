@@ -241,3 +241,20 @@ All 60 are in the file headers. Bonus games lose more at the beginner tier:
 ### For playtesting
 - Whether the strategies read naturally (`w=`/`h=` notation; `prefer low`
   on "2 high cards" means "keep the two lowest", e.g. KQ from AKQ).
+
+**M3 review (2026-11-21).** Owner decisions: ~7 min browser generation is
+acceptable (rare event); expert weak spots accepted for now; keep the
+shipped 15-line beginner strategies.
+- **Tunable line cap** for custom strategies: `ovp strategy generate ...
+  --max-lines N`, `maxLines` in the wasm/worker API, "Line cap" field in the
+  dev shell (3–200). Example: DDB 8/5 beginner at 20 lines loses 0.0118
+  credits/hand vs 0.0354 at 15.
+- **Reading order fix.** Owner reported DDB 8/5 beginner listing "pair J-A"
+  above "three of a kind", which reads as "break trip aces". Play was already
+  right: "pair" means a rank dealt exactly twice, so trips are never broken.
+  But the order of rules that never compete was arbitrary. A new pass sorts
+  those rules by the average EV of their holds, moving one only past
+  neighbours that never decide the same hands, so play can't change. Applied
+  to all 60 shipped files with play verified unchanged (same holds, same
+  exact return). Now trips read right under the pat hands. New tests cover
+  the line cap and reading order (Rust 48 tests, vitest 16).
