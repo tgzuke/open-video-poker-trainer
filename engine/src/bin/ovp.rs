@@ -23,6 +23,7 @@ usage:
   ovp strategy generate [TABLE] [--bet N] [--progressive C] --tier T [--out FILE]
   ovp strategy generate --all [--out DIR]       every preset × every tier
   ovp strategy eval FILE [TABLE] [--bet N] [--progressive C]
+  ovp strategy tidy FILE...                     drop unreachable pat hands (play unchanged)
   ovp strategy play FILE [TABLE] \"As Ks Qs Js 2c\"
 
 TABLE selects a pay table (default jacks-or-better-9-6):
@@ -561,6 +562,52 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
                 }
             }
             Ok(rep.is_complete())
+        }
+        "tidy" => {
+            // Re-tidies and re-evaluates strategy files in place (no
+            // regeneration). Play must not change.
+            for file in &o.positional[1..] {
+                let text = std::fs::read_to_string(file).map_err(|e| format!("{file}: {e}"))?;
+                let head = |k: &str| {
+                    text.lines()
+                        .find_map(|l| l.strip_prefix(&format!("# {k}: ")))
+                        .map(str::to_string)
+                };
+                let table = builtin_paytable(
+                    &head("paytable").ok_or(format!("{file}: no paytable header"))?,
+                )?;
+                let game = builtin_game(&table.game)?;
+                let bet: u32 = head("bet")
+                    .ok_or("no bet header")?
+                    .parse()
+                    .map_err(|_| "bad bet header")?;
+                let tier = head("tier").and_then(|t| t.split(' ').next().map(str::to_string));
+                let tier = tier.map(|t| strategy::tier(&t)).transpose()?;
+                let pays = game.pays_for_bet(&table, bet)?;
+                let an = Analyzer::new(game);
+                let old = Strategy::parse(&text)?;
+                let new = strategy::tidy(&old);
+                let r_old = strategy::evaluate(&an, &pays, bet, &old);
+                let r_new = strategy::evaluate(&an, &pays, bet, &new);
+                if r_old.ret != r_new.ret || r_old.holds != r_new.holds || !r_new.is_complete() {
+                    return Err(format!("{file}: tidy changed play"));
+                }
+                let meta = FileMeta {
+                    game: &an.game.def.id,
+                    paytable: &table.id,
+                    bet,
+                    progressive: None,
+                    tier: tier.as_ref(),
+                };
+                std::fs::write(file, strategy::render_file(&new, &r_new, &meta))
+                    .map_err(|e| format!("{file}: {e}"))?;
+                println!(
+                    "{file}: {} -> {} lines, play unchanged",
+                    old.rules.len(),
+                    new.rules.len()
+                );
+            }
+            Ok(true)
         }
         "play" => {
             let file = o.positional.get(1).ok_or("strategy play needs a FILE")?;

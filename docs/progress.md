@@ -137,3 +137,107 @@ Nothing yet (no game UI until M4).
 whole credits and nothing is precomputed for now. M2 shell checked in Chrome:
 DDB 9/6 → 98.9808%; a custom DDB 8/5 saved in the page gives 96.7861%
 (= preset), persists across reload; no console errors.
+
+## Milestone 3 — Strategy layer (2026-11-21)
+
+### Built
+- **Rule language** (plain text, one rule per line; see
+  [strategy-format.md](strategy-format.md)). It covers:
+  - pat hands, including several on one line;
+  - quads, trips and pairs by rank group, with DDB kickers;
+  - draw families (royal / straight flush / flush / straight) with
+    `w` (straights the cards fit) and `h` (high cards);
+  - exact combinations ("QJ suited", "KQJ unsuited", "K");
+  - "N high cards";
+  - penalty qualifiers `fp` (flush) and `sp` (straight), and `prefer low`.
+  Tie-break inside a rule: highest ranks, then fewest fp, then fewest sp.
+- **Evaluator** (exact). It reports the return, the EV loss (credits/hand and
+  points of return), per-rule fires / wrong / loss, undefined and ambiguous
+  hands, and the costliest misplays.
+- **Completeness checker:** every one of the 134,459 classes must resolve,
+  with no ambiguity.
+- **Generator** for all three tiers, run natively from the CLI and in the
+  browser worker (wasm). It builds candidate rules from the game and the
+  analysis, records what each rule would cost on every class, then searches.
+  The search is greedy plus backward elimination from 10 starting points,
+  with local moves, swaps, compound moves and "family bursts". Tiers are
+  warm-started from the tier below and never worse than it.
+- **60 shipped strategies** in `strategies/<paytable>/<tier>.txt` (20 presets
+  × 3 tiers), with numbers in comments. CLI: `ovp strategy
+  generate|eval|play|tidy`. Dev shell: strategy panel (preset or generate,
+  per-rule table, deciding rule for a hand).
+
+### Decisions made (owner asked for intelligent choices here)
+- **Exact ties** (SPEC updated): no EV loss is charged for a hold exactly
+  tied with the best one. Leftover choices within a rule that are exactly
+  tied aren't ambiguous. In checking modes a tied hold counts as the same play.
+- **Groups are counted as dealt:** "pair" is a rank dealt exactly twice. The
+  first generator broke quads into "three of a kind"; this rule makes that
+  impossible.
+- **Every pat hand has a line in every tier**, so no strategy breaks a dealt
+  royal for lack of a line. Several pat hands may share one line, which is
+  what makes a 15-line beginner tier usable. The generator still decides
+  where they go (4 to a royal over a pat flush, AAA+kicker over a full house
+  in DDB).
+- **Tier qualifiers:** beginner none; intermediate `fp` only; expert `fp` and
+  `sp`. Caps 15 / 30 / 60 (defaults, in `generate.rs`).
+
+### Verified — all pass (`cargo test`: 46 tests; vitest: 16)
+- All 60 shipped strategies:
+  - parse back and are complete;
+  - recorded return equals a fresh exact evaluation;
+  - within their tier's line cap and qualifier rules;
+  - every pat hand covered;
+  - beginner ≥ intermediate ≥ expert in loss.
+- Class-based evaluation is exact. On four reduced decks × 2 games, playing
+  the strategy on every single deal gives exactly the same return. Play is
+  suit-symmetric on 20,000 random full-deck hands.
+- The generator's internal loss equals the exact evaluator (to 1e-9) for
+  every generated strategy. I hit one discrepancy during development
+  (running-sum drift in the search), caught by this check and fixed.
+- Ties: replacing every best hold with another exactly-tied hold leaves the
+  exact return unchanged.
+- Per-rule numbers add up to the totals. The checker flags undefined hands.
+  `tidy` changes no play (checked on all 60 files).
+- wasm: preset strategies evaluate to their recorded return; generation of
+  all three tiers works in wasm (small custom deck in tests; full deck
+  benchmarked below).
+
+### Results (return %, max bet; loss vs optimal in credits/hand)
+| Table | Optimal | Beginner (15) | Intermediate (30) | Expert (≤60) |
+|---|---|---|---|---|
+| JoB 9/6 | 99.5439 | 99.3292 (0.0107) | 99.5421 (0.00009) | 99.5436 (0.00001) |
+| JoB 8/5 | 97.2984 | 97.0641 (0.0117) | 97.2939 (0.0002) | 97.2981 (0.00002) |
+| BP 8/5 | 99.1660 | 98.8751 (0.0145) | 99.1620 (0.0002) | 99.1657 (0.00001) |
+| DB 10/7 | 100.1725 | 99.6485 (0.0262) | 100.0813 (0.0046) | 100.1715 (0.00005) |
+| DB 9/6 | 97.8062 | 97.3618 (0.0222) | 97.7544 (0.0026) | 97.7972 (0.00045) |
+| DDB 9/6 | 98.9808 | 98.2990 (0.0341) | 98.9428 (0.0019) | 98.9796 (0.00006) |
+| DDB 6/5 | 94.6569 | 94.0135 (0.0322) | 94.6106 (0.0023) | 94.6563 (0.00003) |
+
+All 60 are in the file headers. Bonus games lose more at the beginner tier:
+15 lines can't express their rank-dependent quads/trips play.
+
+### Performance
+- Generation (native, 10 search starts in parallel on 10 cores): ~3–7 s
+  beginner, 7–15 s intermediate, 37–78 s expert per table; all 60 in ~20 min.
+- WebAssembly (single thread, full deck, 9/6 JoB, older 5-start build):
+  13 s beginner, 49 s intermediate, 156 s expert. The current 10-start
+  search will take roughly twice that, about 7 minutes for all three tiers
+  of a custom table.
+- Exact evaluation of a strategy: ~0.5 s native, ~1.5 s wasm.
+
+### Open questions
+- **Custom-table generation time in the browser** (~7 min for all tiers). A
+  "quick" mode with fewer search starts is easy if that's too slow. Worth
+  deciding before M5/M6.
+- **Tier caps** (SPEC open question): 15 lines costs bonus games 0.02–0.04
+  credits/hand at beginner. Raising beginner to ~20 would help those games
+  most.
+- Expert DB 9/6, 9/5, 9/6/4 still lose 0.0001–0.0005 credits/hand. Other
+  tables get to ~0.00002, so there is search headroom left there.
+- Penalty qualifiers rarely win a line at the intermediate tier; the
+  language may need finer qualifiers for experts later.
+
+### For playtesting
+- Whether the strategies read naturally (`w=`/`h=` notation; `prefer low`
+  on "2 high cards" means "keep the two lowest", e.g. KQ from AKQ).

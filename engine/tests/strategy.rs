@@ -309,3 +309,23 @@ fn shipped_double_bonus() {
 fn shipped_double_double_bonus() {
     check_shipped("double-double-bonus");
 }
+
+/// Tidy drops pat hands that earlier lines already keep, without changing play.
+#[test]
+fn tidy_removes_unreachable_pat_hands() {
+    let (an, pays) = job();
+    let s = Strategy::parse(
+        "straight flush\nroyal flush\n4 to a royal\nroyal flush, straight flush, four of a kind, full house\nflush, straight\npair\ndiscard everything\n",
+    )
+    .unwrap();
+    let t = strategy::tidy(&s);
+    assert_eq!(t.rules[3].to_string(), "four of a kind, full house");
+    assert_eq!(t.rules.len(), s.rules.len());
+    let a = strategy::evaluate(&an, &pays, 5, &s);
+    let b = strategy::evaluate(&an, &pays, 5, &t);
+    assert_eq!(a.holds, b.holds);
+    assert_eq!(a.ret, b.ret);
+    // A pat line that is entirely covered disappears.
+    let s2 = Strategy::parse("flush\nstraight\nflush, straight\ndiscard everything\n").unwrap();
+    assert_eq!(strategy::tidy(&s2).rules.len(), 3);
+}

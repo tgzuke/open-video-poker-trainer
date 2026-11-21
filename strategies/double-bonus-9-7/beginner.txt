@@ -1,0 +1,25 @@
+# Open Video Poker Trainer strategy (generated; notation: docs/strategy-format.md)
+# game: double-bonus
+# paytable: double-bonus-9-7
+# bet: 5
+# tier: beginner (max 15 lines)
+# return: 98.517822%  optimal: 99.106472%
+# loss: 0.029433 credits/hand (0.588650 points of return)
+# complete: yes
+#
+# per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
+royal flush, straight flush, four of a kind, full house, flush, straight  # fires   0.7586%  wrong   0.0199%  loss 0.006072
+4 to a flush                                                              # fires   4.0456%  wrong   0.2479%  loss 0.002015
+two pair                                                                  # fires   4.7539%  wrong   0.7314%  loss 0.002641
+4 to a royal                                                              # fires   0.0272%  wrong   0.0000%  loss 0.000000
+4 to a straight flush                                                     # fires   0.1958%  wrong   0.0000%  loss 0.000000
+three of a kind                                                           # fires   2.1128%  wrong   0.0000%  loss 0.000000
+3 to a royal                                                              # fires   1.0643%  wrong   0.2701%  loss 0.002033
+4 to a straight w=2                                                       # fires   2.7639%  wrong   0.0693%  loss 0.001645
+pair                                                                      # fires  39.9825%  wrong   0.0379%  loss 0.000079
+3 to a straight flush                                                     # fires   2.8687%  wrong   0.2369%  loss 0.000390
+4 to a straight                                                           # fires   6.4540%  wrong   1.8672%  loss 0.002706
+2 high cards suited                                                       # fires   5.4959%  wrong   1.8049%  loss 0.001450
+2 high cards prefer low                                                   # fires  14.0221%  wrong   6.3847%  loss 0.004113
+1 high card                                                               # fires  13.4228%  wrong   3.5262%  loss 0.005173
+discard everything                                                        # fires   2.0320%  wrong   0.6469%  loss 0.001115

@@ -532,7 +532,11 @@ impl<'a> Search<'a> {
         let (mut best, mut best_p, mut acc) = (f64::INFINITY, len, 0.0);
         for p in (0..=len).rev() {
             acc += self.buckets[p];
-            let better = if top { acc <= best + EPS } else { acc < best - EPS };
+            let better = if top {
+                acc <= best + EPS
+            } else {
+                acc < best - EPS
+            };
             if better {
                 best = best.min(acc);
                 best_p = p;
@@ -1072,7 +1076,7 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seed: Option<&Strategy
     let mut rules: Vec<Rule> = s.order.iter().map(|&r| table.rules[r as usize]).collect();
     rules.push(Rule::new(Pattern::Nothing));
     Generated {
-        strategy: Strategy { rules },
+        strategy: super::tidy(&Strategy { rules }),
         loss: s.total,
         candidates: table.rules.len(),
         entries: table.entries(),

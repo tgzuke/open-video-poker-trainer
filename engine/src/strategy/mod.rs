@@ -9,6 +9,53 @@ pub use evaluate::{Play, Report, evaluate, matching_rules, play};
 pub use generate::{TIERS, Tier, generate, generate_tiers, tier};
 pub use rule::{Rule, Strategy};
 
+/// Removes pat hands from a combined pat line when an earlier unqualified
+/// line already keeps that hand (the bit could never fire). Play is
+/// unchanged; a line left with one pat hand becomes that single rule.
+pub fn tidy(strategy: &Strategy) -> Strategy {
+    use crate::eval::HandKind;
+    use rule::{ALL_RANKS, Pattern, pat_bit};
+    let mut covered = 0u8;
+    let mut rules = Vec::with_capacity(strategy.rules.len());
+    for r in &strategy.rules {
+        let mut r = *r;
+        if let Pattern::Pat(m) = r.pattern {
+            let left = m & !covered;
+            if left == 0 {
+                continue; // nothing reachable: drop the line
+            }
+            r.pattern = if left.count_ones() == 1 {
+                match left.trailing_zeros() {
+                    0 => Pattern::Made(HandKind::RoyalFlush),
+                    1 => Pattern::Made(HandKind::StraightFlush),
+                    2 => Pattern::Quads {
+                        ranks: ALL_RANKS,
+                        kicker: None,
+                    },
+                    3 => Pattern::Made(HandKind::FullHouse),
+                    4 => Pattern::Made(HandKind::Flush),
+                    _ => Pattern::Made(HandKind::Straight),
+                }
+            } else {
+                Pattern::Pat(left)
+            };
+        }
+        if !r.has_qualifier() {
+            covered |= match r.pattern {
+                Pattern::Pat(m) => m,
+                Pattern::Made(k) => pat_bit(k).map_or(0, |b| 1 << b),
+                Pattern::Quads {
+                    ranks: ALL_RANKS,
+                    kicker: None,
+                } => 1 << 2,
+                _ => 0,
+            };
+        }
+        rules.push(r);
+    }
+    Strategy { rules }
+}
+
 /// Header metadata for a strategy file.
 pub struct FileMeta<'a> {
     pub game: &'a str,

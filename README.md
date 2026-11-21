@@ -10,7 +10,8 @@ A free, open-source video poker trainer. Not a gambling product. See
 | `engine/` | Rust engine (no UI deps). Library + `ovp` CLI; compiles to WebAssembly. |
 | `data/` | Game definitions and pay table libraries (JSON). Every file is compiled into the engine automatically; adding a preset is data entry. |
 | `app/` | TypeScript + Vite browser app. The engine runs in a Web Worker. |
-| `docs/` | Progress notes per milestone. |
+| `strategies/` | Generated strategies: one folder per preset pay table, `beginner/intermediate/expert.txt`. Format: [docs/strategy-format.md](docs/strategy-format.md). |
+| `docs/` | Progress notes per milestone; strategy format. |
 
 ## Requirements
 
@@ -31,6 +32,10 @@ cargo run --release --bin ovp -- analyze --progressive 6000
 cargo run --release --bin ovp -- analyze --set full_house=8 --set flush=5   # custom variant
 cargo run --release --bin ovp -- holds "Js Ts 9s 2h 2d"
 cargo run --release --bin ovp -- verify --all       # §3.3 suite for every game
+cargo run --release --bin ovp -- strategy eval ../strategies/jacks-or-better-9-6/expert.txt
+cargo run --release --bin ovp -- strategy play ../strategies/jacks-or-better-9-6/beginner.txt "Ah Kh Qh Jh 2c"
+cargo run --release --bin ovp -- strategy generate -p bonus-poker-8-5 --tier intermediate
+cargo run --release --bin ovp -- strategy generate --all     # regenerate strategies/ (~20 min)
 
 # App
 cd app

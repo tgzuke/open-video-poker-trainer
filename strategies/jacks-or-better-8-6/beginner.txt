@@ -1,0 +1,25 @@
+# Open Video Poker Trainer strategy (generated; notation: docs/strategy-format.md)
+# game: jacks-or-better
+# paytable: jacks-or-better-8-6
+# bet: 5
+# tier: beginner (max 15 lines)
+# return: 98.177215%  optimal: 98.392685%
+# loss: 0.010774 credits/hand (0.215471 points of return)
+# complete: yes
+#
+# per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
+royal flush, straight flush, four of a kind, full house, flush, straight  # fires   0.7586%  wrong   0.0088%  loss 0.005830
+two pair                                                                  # fires   4.7539%  wrong   0.0000%  loss 0.000000
+4 to a royal                                                              # fires   0.0272%  wrong   0.0000%  loss 0.000000
+4 to a straight flush                                                     # fires   0.1958%  wrong   0.0000%  loss 0.000000
+pair J-A                                                                  # fires  12.9846%  wrong   0.0000%  loss 0.000000
+three of a kind                                                           # fires   2.1128%  wrong   0.0000%  loss 0.000000
+3 to a royal                                                              # fires   1.0911%  wrong   0.0332%  loss 0.000009
+4 to a flush                                                              # fires   3.2902%  wrong   0.0000%  loss 0.000000
+pair                                                                      # fires  28.2187%  wrong   0.0097%  loss 0.000029
+4 to a straight w=2                                                       # fires   2.2717%  wrong   0.0000%  loss 0.000000
+3 to a straight flush                                                     # fires   2.8687%  wrong   0.6723%  loss 0.001701
+2 high cards suited prefer low                                            # fires   6.4844%  wrong   0.1912%  loss 0.000234
+2 high cards prefer low                                                   # fires  15.5458%  wrong   1.1538%  loss 0.001887
+1 high card prefer low                                                    # fires  16.1506%  wrong   1.0855%  loss 0.001084
+discard everything                                                        # fires   3.2459%  wrong   0.0000%  loss 0.000000
