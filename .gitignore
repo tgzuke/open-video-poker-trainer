@@ -1,0 +1,10 @@
+# Rust
+engine/target/
+# Node / Vite
+node_modules/
+app/dist/
+# Generated WebAssembly package (built by `npm run build:wasm`)
+app/src/wasm/
+# OS / editor
+.DS_Store
+*.swp

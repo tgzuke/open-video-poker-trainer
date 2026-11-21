@@ -1,0 +1,17 @@
+{
+  "id": "jacks-or-better-9-6",
+  "game": "jacks-or-better",
+  "name": "9/6",
+  "pays": {
+    "royal_flush": 250,
+    "straight_flush": 50,
+    "four_of_a_kind": 25,
+    "full_house": 9,
+    "flush": 6,
+    "straight": 4,
+    "three_of_a_kind": 3,
+    "two_pair": 2,
+    "jacks_or_better": 1
+  },
+  "max_bet_pays": { "royal_flush": 4000 }
+}
