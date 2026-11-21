@@ -12,7 +12,38 @@ export type Request =
   | { kind: "load"; paytableId: string }
   | { kind: "loadCustom"; paytable: PayTableJson }
   | ({ kind: "holdEvs"; hand: string } & WagerMsg)
-  | ({ kind: "optimalReturn" } & WagerMsg);
+  | ({ kind: "optimalReturn" } & WagerMsg)
+  | ({ kind: "evaluateStrategy"; text: string } & WagerMsg)
+  | ({ kind: "generateStrategy"; tier: Tier; seed: string } & WagerMsg)
+  | { kind: "playStrategy"; text: string; hand: string };
+
+export type Tier = "beginner" | "intermediate" | "expert";
+export const TIERS: Tier[] = ["beginner", "intermediate", "expert"];
+
+export interface RuleReport {
+  text: string;
+  fires: number; // probability the rule decides the hand
+  disagrees: number; // probability it decides and its hold is not optimal
+  loss: number; // credits per hand lost on those hands
+}
+export interface StrategyReport {
+  return: number;
+  optimal: number;
+  lossCredits: number;
+  lossPoints: number;
+  complete: boolean;
+  undefined: string[];
+  undefinedCount: number;
+  ambiguous: string[];
+  ambiguousCount: number;
+  rules: RuleReport[];
+}
+export interface StrategyPlay {
+  cards: string[];
+  rule: number | null; // 0-based deciding rule
+  hold: number; // mask, bit i keeps card i
+  matching: { rule: number; hold: number }[]; // every matching rule, in order
+}
 
 export interface PayLineJson {
   id: string;
@@ -51,7 +82,10 @@ export type ResponseData =
   | { kind: "load"; buildMs: number; rebuilt: boolean }
   | { kind: "loadCustom"; buildMs: number; rebuilt: boolean }
   | { kind: "holdEvs"; result: HoldEvsResult; ms: number }
-  | { kind: "optimalReturn"; ret: number; ms: number };
+  | { kind: "optimalReturn"; ret: number; ms: number }
+  | { kind: "evaluateStrategy"; report: StrategyReport; ms: number }
+  | { kind: "generateStrategy"; text: string; ms: number }
+  | { kind: "playStrategy"; play: StrategyPlay };
 
 export interface Envelope<T> {
   id: number;

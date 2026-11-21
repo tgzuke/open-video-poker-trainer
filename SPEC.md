@@ -50,7 +50,7 @@ Real money, purchases, comps or player tracking. No copyrighted or trademarked a
 - **Full-game analysis.** Use suit symmetry to reduce the 2,598,960 possible deals to about 134,459 distinct classes, then compute:
   - optimal-play return
   - the optimal hold for every class
-- **Tied holds.** When two or more holds have exactly equal EV (compared as exact fractions), they are **equivalent choices**. "Optimal play" for a hand is the *set* of all max-EV holds, and any member of it costs 0 EV. Returns never depend on which tied hold is picked. How the strategy layer, analyzer and trainer use these sets is decided in milestone 3.
+- **Tied holds.** When two or more holds have exactly equal EV (compared as exact fractions), they are **equivalent choices**. "Optimal play" for a hand is the *set* of all max-EV holds, and any member of it costs 0 EV. Returns never depend on which tied hold is picked. Decided in milestone 3: strategy EV loss is charged only when the strategy's hold is strictly worse than the best; a rule's leftover choices that are exactly tied are not ambiguous; in checking modes a player hold exactly tied with the expected hold is the same play (§5.1).
   - the exact return of any given strategy
 
   Never use simulation to grade a strategy. The calculation is exact.

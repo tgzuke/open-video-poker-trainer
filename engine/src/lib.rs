@@ -10,6 +10,7 @@ pub mod combin;
 pub mod draw;
 pub mod eval;
 pub mod game;
+pub mod strategy;
 pub mod verify;
 
 #[cfg(target_arch = "wasm32")]

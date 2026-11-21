@@ -13,6 +13,8 @@
       td { padding: 0 1rem 0 0; }
       .best { color: #ffd800; }
       .err { color: #ff6b6b; }
+      .num { text-align: right; }
+      #strategy table td { padding-right: 1.2rem; }
       .row { display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; }
       fieldset { border: 1px solid #4a5ab0; }
     </style>
@@ -20,7 +22,7 @@
   <body>
     <main>
       <h1>Open Video Poker Trainer</h1>
-      <p>Engine shell (Milestone 2). The game UI arrives in Milestone 4.</p>
+      <p>Engine shell (Milestone 3). The game UI arrives in Milestone 4.</p>
       <p id="status">Loading engine…</p>
       <div class="row">
         <fieldset>
@@ -38,6 +40,16 @@
           <p><input id="custom-name" placeholder="name" size="12" /> <button id="save-custom" disabled>Save custom</button></p>
         </fieldset>
       </div>
+      <fieldset>
+        <legend>Strategy</legend>
+        <p>
+          <label>Tier <select id="tier"><option>beginner</option><option>intermediate</option><option>expert</option></select></label>
+          <button id="load-strategy" disabled>Preset strategy</button>
+          <button id="generate-strategy" disabled>Generate for this table</button>
+          <span id="strategy-status"></span>
+        </p>
+        <div id="strategy"></div>
+      </fieldset>
       <form id="holds-form">
         <label>Hand <input id="hand" value="Js Ts 9s 2h 2d" size="18" /></label>
         <button disabled id="holds-btn">Show hold EVs</button>

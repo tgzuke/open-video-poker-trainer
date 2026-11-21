@@ -6,6 +6,7 @@ use ovp_engine::game::{
     Game, PayTable, Wager, builtin_game, builtin_games, builtin_paytable, builtin_paytables,
     parse_paytable, with_overrides,
 };
+use ovp_engine::strategy::{self, FileMeta, Strategy};
 use ovp_engine::verify;
 use std::process::ExitCode;
 use std::time::Instant;
@@ -19,6 +20,10 @@ usage:
   ovp analyze --all [--bet N] [--progressive CREDITS]
   ovp holds   [TABLE] [--bet N] [--progressive CREDITS] \"As Ks Qs Js 2c\"
   ovp verify  [TABLE | --all] [--samples N] [--seed N] [--full]
+  ovp strategy generate [TABLE] [--bet N] [--progressive C] --tier T [--out FILE]
+  ovp strategy generate --all [--out DIR]       every preset × every tier
+  ovp strategy eval FILE [TABLE] [--bet N] [--progressive C]
+  ovp strategy play FILE [TABLE] \"As Ks Qs Js 2c\"
 
 TABLE selects a pay table (default jacks-or-better-9-6):
   --paytable ID | -p ID      a preset (see `ovp list`)
@@ -37,6 +42,8 @@ struct Opts {
     samples: usize,
     seed: u64,
     full: bool,
+    tier: Option<String>,
+    out: Option<String>,
     positional: Vec<String>,
 }
 
@@ -51,6 +58,8 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
         samples: 200,
         seed: 0x5EED,
         full: false,
+        tier: None,
+        out: None,
         positional: vec![],
     };
     let mut it = args.iter();
@@ -80,6 +89,8 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
             "--samples" => o.samples = val(a)?.parse().map_err(|_| "bad --samples")?,
             "--seed" => o.seed = val(a)?.parse().map_err(|_| "bad --seed")?,
             "--full" => o.full = true,
+            "--tier" => o.tier = Some(val(a)?),
+            "--out" | "-o" => o.out = Some(val(a)?),
             s if s.starts_with('-') => return Err(format!("unknown option {s}")),
             s => o.positional.push(s.to_string()),
         }
@@ -385,6 +396,216 @@ fn cmd_verify(o: &Opts) -> Result<bool, String> {
     Ok(ok)
 }
 
+/// Generates the requested tiers (each warm-started from the one below) and
+/// returns (tier, file text, report, seconds) for each.
+fn generate_for(
+    an: &Analyzer,
+    table: &PayTable,
+    w: Wager,
+    tiers: &[strategy::Tier],
+) -> Result<Vec<(strategy::Tier, String, strategy::Report, f64)>, String> {
+    let pays = an.game.pays(table, w)?;
+    let mut out = Vec::new();
+    let mut seed: Option<Strategy> = None;
+    for tier in tiers {
+        let t = Instant::now();
+        let g = strategy::generate(an, &pays, tier, seed.as_ref());
+        let secs = t.elapsed().as_secs_f64();
+        let (text, report) = check_and_render(an, table, w, tier, &pays, &g)?;
+        seed = Some(g.strategy);
+        out.push((*tier, text, report, secs));
+    }
+    Ok(out)
+}
+
+fn check_and_render(
+    an: &Analyzer,
+    table: &PayTable,
+    w: Wager,
+    tier: &strategy::Tier,
+    pays: &[i64],
+    g: &strategy::generate::Generated,
+) -> Result<(String, strategy::Report), String> {
+    let pays = pays.to_vec();
+    let report = strategy::evaluate(an, &pays, w.bet, &g.strategy);
+    if !report.is_complete() {
+        return Err(format!(
+            "{} {}: generated strategy is incomplete",
+            table.id, tier.name
+        ));
+    }
+    if (report.loss_credits() - g.loss).abs() > 1e-9 {
+        return Err(format!(
+            "{} {}: search loss {} disagrees with exact evaluation {}",
+            table.id,
+            tier.name,
+            g.loss,
+            report.loss_credits()
+        ));
+    }
+    let meta = FileMeta {
+        game: &an.game.def.id,
+        paytable: &table.id,
+        bet: w.bet,
+        progressive: w.progressive,
+        tier: Some(tier),
+    };
+    Ok((strategy::render_file(&g.strategy, &report, &meta), report))
+}
+
+fn cmd_strategy(o: &Opts) -> Result<bool, String> {
+    let sub = o.positional.first().map(String::as_str).unwrap_or("");
+    match sub {
+        "generate" if o.all => {
+            let dir = o.out.clone().unwrap_or_else(|| "../strategies".into());
+            let tables = builtin_paytables();
+            println!(
+                "{:<30} {:<13} {:>6} {:>11} {:>12} {:>8}",
+                "Pay table", "Tier", "Lines", "Return %", "Loss cr/hd", "Time s"
+            );
+            for game in builtin_games() {
+                let an = Analyzer::new(game);
+                for table in tables.iter().filter(|t| t.game == an.game.def.id) {
+                    let w = Wager::bet(an.game.def.max_bet);
+                    let tdir = format!("{dir}/{}", table.id);
+                    std::fs::create_dir_all(&tdir).map_err(|e| format!("{tdir}: {e}"))?;
+                    for (tier, text, rep, secs) in generate_for(&an, table, w, &strategy::TIERS)? {
+                        let path = format!("{tdir}/{}.txt", tier.name);
+                        std::fs::write(&path, &text).map_err(|e| format!("{path}: {e}"))?;
+                        println!(
+                            "{:<30} {:<13} {:>6} {:>11.6} {:>12.6} {:>8.1}",
+                            table.id,
+                            tier.name,
+                            rep.rules.len(),
+                            rep.ret.to_f64() * 100.0,
+                            rep.loss_credits(),
+                            secs
+                        );
+                    }
+                }
+            }
+            Ok(true)
+        }
+        "generate" => {
+            let (game, table) = load_table(o)?;
+            let w = wager(o, &game)?;
+            let tier = strategy::tier(o.tier.as_deref().ok_or("--tier is required")?)?;
+            let an = Analyzer::new(game);
+            // Lower tiers seed the requested one.
+            let upto: Vec<strategy::Tier> = strategy::TIERS
+                .iter()
+                .take_while(|t| t.name != tier.name)
+                .copied()
+                .chain([tier])
+                .collect();
+            let (_, text, _, secs) = generate_for(&an, &table, w, &upto)?.pop().unwrap();
+            match &o.out {
+                Some(f) => {
+                    std::fs::write(f, &text).map_err(|e| format!("{f}: {e}"))?;
+                    eprintln!("wrote {f} ({secs:.1} s)");
+                }
+                None => {
+                    print!("{text}");
+                    eprintln!("({secs:.1} s)");
+                }
+            }
+            Ok(true)
+        }
+        "eval" => {
+            let file = o.positional.get(1).ok_or("strategy eval needs a FILE")?;
+            let text = std::fs::read_to_string(file).map_err(|e| format!("{file}: {e}"))?;
+            let strat = Strategy::parse(&text)?;
+            let (game, table) = load_table(o)?;
+            let w = wager(o, &game)?;
+            let pays = game.pays(&table, w)?;
+            let an = Analyzer::new(game);
+            let rep = strategy::evaluate(&an, &pays, w.bet, &strat);
+            let meta = FileMeta {
+                game: &an.game.def.id,
+                paytable: &table.id,
+                bet: w.bet,
+                progressive: w.progressive,
+                tier: None,
+            };
+            print!("{}", strategy::render_file(&strat, &rep, &meta));
+            if !rep.worst.is_empty() {
+                println!("# costliest misplays (hand classes; credits/hand lost):");
+                let fmt = |hand: &str, m: u8| -> String {
+                    hand.split(' ')
+                        .enumerate()
+                        .map(|(i, c)| {
+                            if m >> i & 1 == 1 {
+                                c.to_string()
+                            } else {
+                                "--".into()
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                };
+                for (l, hand, r, h, b) in rep.worst.iter().take(15) {
+                    println!(
+                        "#   {l:.7}  {hand}  rule {:>2} holds {}  optimal {}",
+                        r + 1,
+                        fmt(hand, *h),
+                        fmt(hand, *b)
+                    );
+                }
+            }
+            for (label, list) in [("UNDEFINED", &rep.undefined), ("AMBIGUOUS", &rep.ambiguous)] {
+                if !list.is_empty() {
+                    println!("# {label}: {} hand classes, e.g.", list.len());
+                    for p in list.iter().take(10) {
+                        println!("#   {} (rule {:?})", p.hand, p.rule.map(|i| i + 1));
+                    }
+                }
+            }
+            Ok(rep.is_complete())
+        }
+        "play" => {
+            let file = o.positional.get(1).ok_or("strategy play needs a FILE")?;
+            let text = std::fs::read_to_string(file).map_err(|e| format!("{file}: {e}"))?;
+            let strat = Strategy::parse(&text)?;
+            let (game, _) = load_table(o)?;
+            let hand = game.deck().parse_hand(&o.positional[2..].join(" "))?;
+            let p = strategy::play(&game, &strat, &hand);
+            let d = game.deck();
+            let held: Vec<String> = (0..5)
+                .map(|i| {
+                    if p.hold >> i & 1 == 1 {
+                        d.card_name(hand[i])
+                    } else {
+                        "--".into()
+                    }
+                })
+                .collect();
+            match p.rule {
+                Some(i) => println!("{}   rule {}: {}", held.join(" "), i + 1, strat.rules[i]),
+                None => println!("no rule matches"),
+            }
+            for (i, m) in strategy::matching_rules(&game, &strat, &hand) {
+                let h: Vec<String> = (0..5)
+                    .map(|j| {
+                        if m >> j & 1 == 1 {
+                            d.card_name(hand[j])
+                        } else {
+                            "--".into()
+                        }
+                    })
+                    .collect();
+                println!(
+                    "  matches rule {:>2}: {:<40} {}",
+                    i + 1,
+                    strat.rules[i].to_string(),
+                    h.join(" ")
+                );
+            }
+            Ok(true)
+        }
+        _ => Err(format!("unknown strategy command '{sub}'\n{USAGE}")),
+    }
+}
+
 fn cmd_list() {
     let tables = builtin_paytables();
     for g in builtin_games() {
@@ -415,6 +636,7 @@ fn main() -> ExitCode {
         "analyze" => cmd_analyze(&o).map(|_| true),
         "holds" => cmd_holds(&o).map(|_| true),
         "verify" => cmd_verify(&o),
+        "strategy" => cmd_strategy(&o),
         "list" => {
             cmd_list();
             Ok(true)
