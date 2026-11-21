@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open Video Poker Trainer</title>
+    <style>
+      body { margin: 0; background: #0a1a6b; color: #fff; font: 16px/1.4 ui-monospace, monospace; }
+      main { max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
+      h1 { color: #ffd800; }
+      input, button { font: inherit; }
+      table { border-collapse: collapse; }
+      td { padding: 0 1rem 0 0; }
+      .best { color: #ffd800; }
+      .err { color: #ff6b6b; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Open Video Poker Trainer</h1>
+      <p>Engine shell (Milestone 1). The game UI arrives in Milestone 4.</p>
+      <p id="status">Loading engine…</p>
+      <p>
+        <button id="analyze" disabled>Analyze 9/6 Jacks or Better (5 coins)</button>
+        <span id="analysis"></span>
+      </p>
+      <form id="holds-form">
+        <label>Hand <input id="hand" value="Js Ts 9s 2h 2d" size="18" /></label>
+        <button disabled id="holds-btn">Show hold EVs</button>
+      </form>
+      <div id="holds"></div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
