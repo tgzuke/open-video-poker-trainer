@@ -258,3 +258,80 @@ shipped 15-line beginner strategies.
   to all 60 shipped files with play verified unchanged (same holds, same
   exact return). Now trips read right under the pat hands. New tests cover
   the line cap and reading order (Rust 48 tests, vitest 16).
+
+## Milestone 4 — Playable game (2026-11-21)
+
+### Built
+- **Cabinet screen** (`app/index.html`). An older-bartop look: deep blue
+  field, yellow pay table in a red frame, current bet column highlighted,
+  winning line lit (on the deal, and flashing after a win), HELD labels, red
+  WIN / BET / CREDIT meters, game label.
+  - All art is drawn in code: an original 5×7 pixel font, 9×9 suits, card
+    faces and backs. Nothing is copied.
+  - Rendered on a 480×270 pixel grid. Every pixel edge is rounded to device
+    pixels, so it's crisp at any window size or full screen (16:9,
+    letterboxed).
+- **Free Play.** Deal/draw, holds, Bet One (cycles 1–5), Bet Max (deals),
+  royal 250/coin below max bet and 4000 at max, optional progressive.
+  Credits are play credits, auto-refilled to 1000 when they run out, and
+  there's a reset in the menu. Credits and bet persist across reloads.
+- **Game model** (`app/src/game/model.ts`). A pure state machine: an action
+  returns the new state plus events, at once. Hands are a list and there's a
+  `carry` slot for state between deals (multi-play / Ultimate X later; not
+  implemented). Hand evaluation and pays come from the wasm engine via a
+  lightweight `Rules` class with no lookup tables, so it's cheap on the UI
+  thread.
+- **Input layer.** Buttons go to actions. The keyboard source uses the
+  default keymap in `app/src/config/keymap.ts` (Z X C V B, comma, M, N), and
+  key-repeat and modifier keys are ignored. A pointer source (click a card to
+  hold it) shows the layer works for other inputs; GPIO can plug in the same
+  way later.
+- **Animation and sound never gate input.** State changes on the key press;
+  the card-flip and count-up timeline only affects what's drawn, and the
+  next action skips it. Sound: synthesized Web Audio (deal, hold, bet, draw,
+  win, count-up, buzz on a rejected press), muted by default.
+- **Menu** (mouse). Game and pay table (presets and saved custom tables),
+  game label rename, progressive, speed slider (slow → instant, default
+  fast), sound on/off and volume, key remapping with conflict warning and
+  reset, credits reset, full screen.
+- The M1–M3 engine shell moved to `app/dev.html`.
+
+### Verified
+- **Acceptance (Chrome, real key events):** 40 hands at 0.78 s/hand, every
+  press applied. Key handler 0.2 ms median / 0.8 ms max; key press to
+  visible frame 16 ms median / 18.5 ms max (the next display frame); no
+  frame over 50 ms. With sound on: 30 hands, ≤ 19.5 ms, no errors. At the
+  slowest speed, 10 deal-hold-draw bursts sent with no gap were all applied
+  at once.
+- **vitest (31 tests, +15 for M4):**
+  - deal / hold / draw order;
+  - payouts match the engine's pay table and credits balance exactly over
+    5,000 seeded hands (with random holds);
+  - Bet One cycling, Bet Max deals, refill, rejected presses;
+  - an action costs < 0.2 ms;
+  - keymap matches the spec with no conflicts; keyboard source ignores
+    repeats, modifiers and unknown keys, and is off while the menu is open;
+  - the animation timeline never holds back the meters; a full hand
+    including a royal count-up fits in 2 s at the default speed;
+  - every pay line name of every game is drawable in the font and fits the
+    column;
+  - prefs round-trip and survive garbage or blocked storage.
+- Rust: 48 tests still pass. Production build OK (game + dev shell).
+
+### Performance
+Model action < 0.2 ms; frame draw well under one 60 Hz frame (no long
+frames observed). Game bundle 32 kB JS (11.5 kB gzip) + 271 kB wasm.
+
+### Open questions
+- Win line flashes until the next deal (like real machines); should it stop
+  after a few seconds?
+- The pay table is dense for Double Double Bonus (13 lines; rows are 8 px
+  on the 270 px grid). Readable, but it's the tightest part of the screen.
+
+### For playtesting (all in `config/feel.ts` or `config/keymap.ts`)
+- Speed levels: ms per card reveal/flip, count-up rate and caps (fast:
+  30 ms/card, 25 ms flip, 1200 credits/s, ≤ 1.2 s).
+- Colors (`PALETTE`) and layout (`LAYOUT`), card art, font.
+- Sound effects (pitches/lengths in `audio/sfx.ts`), default volume 0.35.
+- Bet One on `N` (still provisional); clicking a card holds it.
+- Auto-refill at 0 credits (`AUTO_REFILL`), starting credits 1000.

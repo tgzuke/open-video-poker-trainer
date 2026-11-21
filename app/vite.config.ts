@@ -6,6 +6,7 @@ export default defineConfig({
   worker: { format: "es" },
   // Preset strategies live in ../strategies (shared with the engine CLI).
   server: { fs: { allow: [".."] } },
-  build: { target: "es2022" },
+
+  build: { target: "es2022", rollupOptions: { input: { main: "index.html", dev: "dev.html" } } },
   test: { include: ["test/**/*.test.ts"] },
 });

@@ -241,3 +241,79 @@ fn report_json(strat: &Strategy, r: &strategy::Report) -> serde_json::Value {
         })).collect::<Vec<_>>(),
     })
 }
+
+/// Lightweight rules for the game screen: hand categories and pays, with no
+/// draw tables (cheap to build; safe on the UI thread).
+#[wasm_bindgen]
+pub struct Rules {
+    game: Game,
+    paytable: PayTable,
+}
+
+#[wasm_bindgen]
+impl Rules {
+    pub fn builtin(paytable_id: &str) -> Result<Rules, JsError> {
+        let paytable = builtin_paytable(paytable_id).map_err(js)?;
+        let game = builtin_game(&paytable.game).map_err(js)?;
+        Ok(Rules { game, paytable })
+    }
+
+    /// Same game, custom pay table (JSON).
+    #[wasm_bindgen(js_name = withPaytable)]
+    pub fn with_paytable(paytable_json: &str) -> Result<Rules, JsError> {
+        let paytable = parse_paytable(paytable_json).map_err(js)?;
+        let game = builtin_game(&paytable.game).map_err(js)?;
+        game.validate_paytable(&paytable).map_err(js)?;
+        Ok(Rules { game, paytable })
+    }
+
+    /// Outcome category of five cards: pay line index, or `noWin()`.
+    pub fn category(&self, cards: &[u8]) -> Result<u32, JsError> {
+        validate_hand(self.game.deck(), cards).map_err(js)?;
+        Ok(self.game.category(cards) as u32)
+    }
+
+    #[wasm_bindgen(js_name = noWin)]
+    pub fn no_win(&self) -> u32 {
+        self.game.no_win() as u32
+    }
+
+    /// Credits paid per category (lines, then "no win" = 0).
+    pub fn pays(&self, bet: u32, progressive_royal: Option<f64>) -> Result<Vec<f64>, JsError> {
+        let w = Wager { bet, progressive: progressive(progressive_royal)? };
+        Ok(self.game.pays(&self.paytable, w).map_err(js)?.into_iter().map(|p| p as f64).collect())
+    }
+
+    #[wasm_bindgen(js_name = maxBet)]
+    pub fn max_bet(&self) -> u32 {
+        self.game.def.max_bet
+    }
+
+    #[wasm_bindgen(js_name = deckSize)]
+    pub fn deck_size(&self) -> u32 {
+        self.game.deck().size() as u32
+    }
+
+    /// Rank value (2..=14) and suit (0..=3, c d h s) of a card id.
+    pub fn rank(&self, card: u8) -> u8 {
+        self.game.deck().rank(card)
+    }
+    pub fn suit(&self, card: u8) -> u8 {
+        self.game.deck().suit(card)
+    }
+
+    #[wasm_bindgen(js_name = lineNames)]
+    pub fn line_names(&self) -> Vec<String> {
+        self.game.def.lines.iter().map(|l| l.name.clone()).collect()
+    }
+
+    #[wasm_bindgen(js_name = gameId)]
+    pub fn game_id(&self) -> String {
+        self.game.def.id.clone()
+    }
+
+    #[wasm_bindgen(js_name = paytableId)]
+    pub fn paytable_id(&self) -> String {
+        self.paytable.id.clone()
+    }
+}

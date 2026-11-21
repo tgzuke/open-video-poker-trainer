@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OVP Trainer — engine dev shell</title>
+    <style>
+      body { margin: 0; background: #0a1a6b; color: #fff; font: 16px/1.4 ui-monospace, monospace; }
+      main { max-width: 56rem; margin: 2rem auto; padding: 0 1rem; }
+      h1 { color: #ffd800; }
+      input, button, select { font: inherit; }
+      table { border-collapse: collapse; }
+      td { padding: 0 1rem 0 0; }
+      .best { color: #ffd800; }
+      .err { color: #ff6b6b; }
+      .num { text-align: right; }
+      #strategy table td { padding-right: 1.2rem; }
+      .row { display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; }
+      fieldset { border: 1px solid #4a5ab0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Open Video Poker Trainer</h1>
+      <p>Engine dev shell (not the game). The game is at <a href="./index.html" style="color:#ffd800">index.html</a>.</p>
+      <p id="status">Loading engine…</p>
+      <div class="row">
+        <fieldset>
+          <legend>Wager</legend>
+          <p><label>Pay table <select id="paytable"></select></label></p>
+          <p>
+            <label>Bet <select id="bet"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option></select></label>
+            <label>Progressive royal <input id="progressive" placeholder="none" size="8" inputmode="numeric" /> credits</label>
+          </p>
+          <p><button id="analyze" disabled>Optimal return</button> <span id="analysis"></span></p>
+        </fieldset>
+        <fieldset>
+          <legend>Pays per coin (edit to make a custom table)</legend>
+          <div id="pays"></div>
+          <p><input id="custom-name" placeholder="name" size="12" /> <button id="save-custom" disabled>Save custom</button></p>
+        </fieldset>
+      </div>
+      <fieldset>
+        <legend>Strategy</legend>
+        <p>
+          <label>Tier <select id="tier"><option>beginner</option><option>intermediate</option><option>expert</option></select></label>
+          <label>Line cap <input id="max-lines" type="number" min="3" max="200" step="1" placeholder="default" size="6" /></label>
+          <button id="load-strategy" disabled>Preset strategy</button>
+          <button id="generate-strategy" disabled>Generate for this table</button>
+          <span id="strategy-status"></span>
+        </p>
+        <div id="strategy"></div>
+      </fieldset>
+      <form id="holds-form">
+        <label>Hand <input id="hand" value="Js Ts 9s 2h 2d" size="18" /></label>
+        <button disabled id="holds-btn">Show hold EVs</button>
+      </form>
+      <div id="holds"></div>
+    </main>
+    <script type="module" src="/src/dev.ts"></script>
+  </body>
+</html>

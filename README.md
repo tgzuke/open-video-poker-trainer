@@ -9,7 +9,7 @@ A free, open-source video poker trainer. Not a gambling product. See
 |---|---|
 | `engine/` | Rust engine (no UI deps). Library + `ovp` CLI; compiles to WebAssembly. |
 | `data/` | Game definitions and pay table libraries (JSON). Every file is compiled into the engine automatically; adding a preset is data entry. |
-| `app/` | TypeScript + Vite browser app. The engine runs in a Web Worker. |
+| `app/` | TypeScript + Vite browser app: the game (`index.html`) and an engine dev shell (`dev.html`). Heavy engine work runs in a Web Worker. Default keys: `app/src/config/keymap.ts`; timing, colors, layout: `app/src/config/feel.ts`. |
 | `strategies/` | Generated strategies: one folder per preset pay table, `beginner/intermediate/expert.txt`. Format: [docs/strategy-format.md](docs/strategy-format.md). |
 | `docs/` | Progress notes per milestone; strategy format. |
 
@@ -42,7 +42,7 @@ cargo run --release --bin ovp -- strategy generate --all     # regenerate strate
 cd app
 npm install
 npm test           # builds the wasm package, then runs vitest against it
-npm run dev        # dev server
+npm run dev        # dev server: game at /, engine dev shell at /dev.html
 npm run build      # static build in app/dist
 ```
 
