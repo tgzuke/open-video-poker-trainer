@@ -29,5 +29,5 @@ The owner is not reviewing the internals. He judges the project by whether it **
 
 ## Workflow
 - Work one milestone at a time (SPEC.md §8). Finish its acceptance criteria before moving on.
-- Commit in small, logical steps with clear messages. The repo is private; don't change its visibility.
+- Commit in small, logical steps with clear messages. The repo is public: commit only as the owner's GitHub username with the no-reply address (set in this repo's git config), and keep personal details out of files and messages.
 - At the end of each milestone, write a short summary to `docs/progress.md`: what was built, how it was verified, performance numbers, open questions, and items for playtesting.
