@@ -29,6 +29,8 @@ pub fn catalog() -> String {
 pub struct Engine {
     analyzer: Analyzer,
     paytable: PayTable,
+    /// Strategy the trainer checks against (SPEC §5).
+    trainer: Option<Strategy>,
 }
 
 fn progressive(p: Option<f64>) -> Result<Option<i64>, JsError> {
@@ -50,6 +52,7 @@ impl Engine {
         Ok(Engine {
             analyzer: Analyzer::new(game),
             paytable,
+            trainer: None,
         })
     }
 
@@ -62,6 +65,7 @@ impl Engine {
         Ok(Engine {
             analyzer: Analyzer::new(game),
             paytable,
+            trainer: None,
         })
     }
 
@@ -205,6 +209,66 @@ impl Engine {
         Ok(strategy::render_file(&g.strategy, &r, &meta))
     }
 
+    /// Sets (or with empty text clears) the strategy the trainer checks.
+    #[wasm_bindgen(js_name = setTrainerStrategy)]
+    pub fn set_trainer_strategy(&mut self, text: &str) -> Result<(), JsError> {
+        self.trainer = if text.trim().is_empty() {
+            None
+        } else {
+            Some(Strategy::parse(text).map_err(js)?)
+        };
+        Ok(())
+    }
+
+    /// Everything the trainer needs to judge any hold of a dealt hand, as
+    /// JSON: EVs (credits), exact-tie groups, best hold, and with a trainer
+    /// strategy set, its play, the matching rules and each hold's rule
+    /// distance (null = off-strategy). See `strategy::trainer`.
+    #[wasm_bindgen(js_name = dealCheck)]
+    pub fn deal_check(
+        &self,
+        cards: &[u8],
+        bet: u32,
+        progressive_royal: Option<f64>,
+    ) -> Result<String, JsError> {
+        let game = &self.analyzer.game;
+        validate_hand(game.deck(), cards).map_err(js)?;
+        let pays = self.pays_i64(bet, progressive_royal)?;
+        let hand = [cards[0], cards[1], cards[2], cards[3], cards[4]];
+        let evs = self.analyzer.hold_evs(&hand, &pays);
+        let ev_list: Vec<f64> = (0..32).map(|m| evs.ev(m)).collect();
+        let tie: Vec<u8> = (0..32)
+            .map(|m| {
+                (0..=m)
+                    .find(|&o| evs.cmp(m, o) == std::cmp::Ordering::Equal)
+                    .unwrap() as u8
+            })
+            .collect();
+        let best = evs.best();
+        let Some(strat) = &self.trainer else {
+            return Ok(
+                serde_json::json!({ "evs": ev_list, "tie": tie, "best": best, "strategy": null })
+                    .to_string(),
+            );
+        };
+        let c = strategy::deal_check(game, strat, &hand, evs);
+        let text = |i: usize| strat.rules[i].to_string();
+        Ok(serde_json::json!({
+            "evs": ev_list,
+            "tie": c.tie,
+            "best": c.best,
+            "strategy": {
+                "rule": c.rule,
+                "ruleText": c.rule.map(text),
+                "hold": c.hold,
+                "matching": c.matching.iter().map(|&(i, m)| serde_json::json!({ "rule": i, "text": text(i), "hold": m })).collect::<Vec<_>>(),
+                "describes": c.describes,
+                "distance": c.distance,
+            }
+        })
+        .to_string())
+    }
+
     /// How a strategy plays a hand, as JSON: deciding rule (0-based or
     /// null), hold mask, and every matching rule with its hold, in order.
     #[wasm_bindgen(js_name = playStrategy)]
@@ -280,8 +344,17 @@ impl Rules {
 
     /// Credits paid per category (lines, then "no win" = 0).
     pub fn pays(&self, bet: u32, progressive_royal: Option<f64>) -> Result<Vec<f64>, JsError> {
-        let w = Wager { bet, progressive: progressive(progressive_royal)? };
-        Ok(self.game.pays(&self.paytable, w).map_err(js)?.into_iter().map(|p| p as f64).collect())
+        let w = Wager {
+            bet,
+            progressive: progressive(progressive_royal)?,
+        };
+        Ok(self
+            .game
+            .pays(&self.paytable, w)
+            .map_err(js)?
+            .into_iter()
+            .map(|p| p as f64)
+            .collect())
     }
 
     #[wasm_bindgen(js_name = maxBet)]

@@ -4,10 +4,12 @@ pub mod evaluate;
 pub mod features;
 pub mod generate;
 pub mod rule;
+pub mod trainer;
 
 pub use evaluate::{Play, Report, evaluate, matching_rules, play};
 pub use generate::{MAX_LINES, MIN_LINES, TIERS, Tier, generate, generate_tiers, tier};
 pub use rule::{Rule, Strategy};
+pub use trainer::{DealCheck, deal_check};
 
 /// Removes pat hands from a combined pat line when an earlier unqualified
 /// line already keeps that hand (the bit could never fire). Play is

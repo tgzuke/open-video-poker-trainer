@@ -257,6 +257,16 @@ fn check_shipped(gid: &str) {
             check_tier_qualifiers(tier.name, &s.rules);
             let r = strategy::evaluate(&an, &pays, 5, &s);
             assert!(r.is_complete(), "{} incomplete", path.display());
+            // Trainer checks agree with play on sample hands (SPEC §5.3).
+            let mut rng = verify::Rng::new(5);
+            for _ in 0..300 {
+                let h = rng.hand(an.game.deck());
+                let c = strategy::deal_check(&an.game, &s, &h, an.hold_evs(&h, &pays));
+                let p = strategy::play(&an.game, &s, &h);
+                assert_eq!((c.rule, c.hold), (p.rule, p.hold));
+                assert_eq!(c.distance[c.hold as usize], Some(0));
+                assert_eq!(c.matching[0].0, p.rule.unwrap());
+            }
             let ret = format!("{:.6}%", r.ret.to_f64() * 100.0);
             assert!(
                 header(&text, "return").starts_with(&ret),
