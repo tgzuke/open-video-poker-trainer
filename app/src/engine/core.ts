@@ -1,6 +1,6 @@
 // Request handling shared by the worker and tests; no DOM, no worker globals.
 import type { Engine } from "../wasm/ovp_engine.js";
-import type { Catalog, DealCheck, HoldEvsResult, PayTableJson, Request, ResponseData, StrategyPlay, StrategyReport } from "./protocol";
+import type { Catalog, Comparison, DealCheck, HoldEvsResult, PayTableJson, Request, ResponseData, StrategyPlay, StrategyReport } from "./protocol";
 
 /** The parts of the wasm module the host needs (injected for testability). */
 export interface EngineModule {
@@ -78,6 +78,10 @@ export class EngineHost {
       case "generateStrategy": {
         const text = engine.generateStrategy(req.tier, req.bet, req.progressive, req.seed, req.maxLines);
         return { kind: "generateStrategy", text, ms: performance.now() - t0 };
+      }
+      case "compareStrategies": {
+        const comparison = JSON.parse(engine.compareStrategies(req.a, req.b, req.bet, req.progressive)) as Comparison;
+        return { kind: "compareStrategies", comparison, ms: performance.now() - t0 };
       }
       case "playStrategy": {
         const cards = engine.parseHand(req.hand);

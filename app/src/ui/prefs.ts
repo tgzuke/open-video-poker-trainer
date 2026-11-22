@@ -5,7 +5,7 @@ import { DEFAULT_SOUND, DEFAULT_SPEED, SPEED_LEVELS, STARTING_CREDITS } from "..
 import { BUTTONS } from "../input/actions";
 import type { Keymap } from "../input/keyboard";
 import { DEFAULT_CHECKING, DEFAULT_GRACE, DEFAULT_MODE, DEFAULT_TIER, type Checking, type Mode } from "../config/trainer";
-import { TIERS, type Tier } from "../engine/protocol";
+import { LEVELS, type Level } from "../engine/protocol";
 
 export interface Prefs {
   paytableId: string;
@@ -24,7 +24,8 @@ export interface Prefs {
   checking: Checking;
   /** Pure EV grace margin, credits at max bet. */
   grace: number;
-  tier: Tier;
+  /** Strategy level the trainer checks against. */
+  tier: Level;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -87,7 +88,7 @@ export function loadPrefs(store: Store | null): Prefs {
   if (r.mode === "free" || r.mode === "practice" || r.mode === "lesson") p.mode = r.mode;
   if (r.checking === "strategy" || r.checking === "ev") p.checking = r.checking;
   if (typeof r.grace === "number" && Number.isFinite(r.grace) && r.grace >= 0) p.grace = r.grace;
-  if (TIERS.includes(r.tier as Tier)) p.tier = r.tier as Tier;
+  if (LEVELS.includes(r.tier as Level)) p.tier = r.tier as Level;
   return p;
 }
 

@@ -75,6 +75,31 @@ those choices have exactly equal EV they are equivalent (SPEC §3.1).
 Otherwise the analyzer reports the hand as **ambiguous**. No generated
 strategy has ambiguous hands.
 
+## Your own strategies
+
+The strategy editor (Menu > Strategy editor) saves one strategy of your
+own per pay table, in this same format. Its header says `tier: custom` and
+records its exact return and loss at max bet. Choose "My strategy" as the
+trainer's strategy to practise against it. Export writes the file.
+
+## Comparing two strategies
+
+`ovp strategy compare A.txt B.txt -p TABLE_B` and the Compare pay tables
+screen show how list B differs from list A, judged on table B:
+
+- Combined pat-hand lines are first split into one line per hand, and
+  repeated rules are dropped. Neither changes play.
+- Rules are matched exactly. A rule only in A is **removed**, a rule only
+  in B is **added**, and a rule in both that falls outside their longest
+  common subsequence is **moved**.
+- The changes are applied to A's list from the top until it is B's list.
+  Each change's effect is the change in exact return on table B from the
+  list before it to the list after it, so the effects add up to (B on B)
+  − (A on B).
+- Hands played differently (holds of different EV) are grouped by the
+  rule that decides them in A and in B. Each group shows its share of
+  deals and its effect, and these add up to the same total.
+
 ## Tiers (defaults; configurable in `engine/src/strategy/generate.rs`)
 
 | Tier | Lines | Qualifiers |

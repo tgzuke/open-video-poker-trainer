@@ -2,15 +2,15 @@
 // render/strategyView.ts. Navigation inside the view is mouse- or
 // arrow-key-driven, like the menus (SPEC §6.4); opening it is a button
 // of the input layer ("strategy", default S).
-import { TIERS, type Tier } from "../engine/protocol";
+import { LEVELS, type Level } from "../engine/protocol";
 import type { Pix } from "../render/pix";
 import { CLOSE_RECT, VISIBLE_ROWS, drawStrategyView, inRect, maxScroll, tabRect, type StrategyContent } from "../render/strategyView";
 
 export interface StrategyScreenHost {
-  /** Rules (file text) of a tier for the current pay table; "" if none. */
-  loadText(tier: Tier): Promise<string>;
-  tier(): Tier;
-  setTier(t: Tier): void;
+  /** Rules (file text) of a level for the current pay table; "" if none. */
+  loadText(tier: Level): Promise<string>;
+  tier(): Level;
+  setTier(t: Level): void;
   title(): string;
   summary(text: string): string;
   closeKey(): string;
@@ -33,7 +33,8 @@ export class StrategyScreen {
 
   constructor(private host: StrategyScreenHost) {}
 
-  /** Forget loaded texts (the pay table changed). */
+  /** Forget loaded texts (the pay table changed, or the player saved a
+   *  strategy of their own). */
   reset() {
     this.texts.clear();
     this.scroll = 0;
@@ -58,11 +59,11 @@ export class StrategyScreen {
     this.host.redraw();
   }
 
-  private key(tier: Tier) {
+  private key(tier: Level) {
     return `${this.host.title()}|${tier}`;
   }
 
-  private ensure(tier: Tier) {
+  private ensure(tier: Level) {
     const k = this.key(tier);
     if (this.texts.has(k)) return;
     void this.host.loadText(tier).then(
@@ -93,7 +94,7 @@ export class StrategyScreen {
     if (this.open) drawStrategyView(p, this.content(), this.scroll);
   };
 
-  selectTier(t: Tier) {
+  selectTier(t: Level) {
     if (t !== this.host.tier()) this.host.setTier(t);
     this.scroll = 0;
     this.ensure(t);
@@ -111,15 +112,15 @@ export class StrategyScreen {
     if (!this.open) return false;
     if (inRect(CLOSE_RECT, x, y)) this.close();
     else {
-      const i = TIERS.findIndex((_, k) => inRect(tabRect(k), x, y));
-      if (i >= 0) this.selectTier(TIERS[i]);
+      const i = LEVELS.findIndex((_, k) => inRect(tabRect(k), x, y));
+      if (i >= 0) this.selectTier(LEVELS[i]);
     }
     return true;
   }
 
   private onKey(e: KeyboardEvent) {
     if (!this.open || e.altKey || e.ctrlKey || e.metaKey) return;
-    const tierIndex = TIERS.indexOf(this.host.tier());
+    const tierIndex = LEVELS.indexOf(this.host.tier());
     const handled: Record<string, () => void> = {
       Escape: () => this.close(),
       ArrowUp: () => this.scrollBy(-1),
@@ -128,8 +129,8 @@ export class StrategyScreen {
       PageDown: () => this.scrollBy(VISIBLE_ROWS),
       Home: () => this.scrollBy(-1e6),
       End: () => this.scrollBy(1e6),
-      ArrowLeft: () => this.selectTier(TIERS[Math.max(0, tierIndex - 1)]),
-      ArrowRight: () => this.selectTier(TIERS[Math.min(TIERS.length - 1, tierIndex + 1)]),
+      ArrowLeft: () => this.selectTier(LEVELS[Math.max(0, tierIndex - 1)]),
+      ArrowRight: () => this.selectTier(LEVELS[Math.min(LEVELS.length - 1, tierIndex + 1)]),
     };
     const f = handled[e.code];
     if (!f) return; // the strategy key itself reaches the keyboard source

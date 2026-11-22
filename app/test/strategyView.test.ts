@@ -10,12 +10,12 @@ import { isGameButton } from "../src/input/actions";
 import { loadPrefs } from "../src/ui/prefs";
 import { LAYOUT, SCREEN } from "../src/config/feel";
 import { screenButtonRects } from "../src/render/cabinet";
-import type { Tier } from "../src/engine/protocol";
+import { LEVELS, type Level } from "../src/engine/protocol";
 
 (globalThis as unknown as { window: unknown }).window = { addEventListener() {}, removeEventListener() {} };
 
-function screen(texts: Record<Tier, string>) {
-  let tier: Tier = "intermediate";
+function screen(texts: Record<Level, string>) {
+  let tier: Level = "intermediate";
   let redraws = 0;
   const s = new StrategyScreen({
     loadText: async (t) => texts[t],
@@ -44,7 +44,7 @@ describe("strategy view", () => {
 
   it("opens, loads the tier, scrolls within bounds, switches tier by tab, closes", async () => {
     const long = Array.from({ length: 60 }, (_, i) => `pair ${i}`).join("\n");
-    const { s, tier } = screen({ beginner: "pair\ndiscard everything", intermediate: long, expert: "" });
+    const { s, tier } = screen({ beginner: "pair\ndiscard everything", intermediate: long, expert: "", custom: "pair J-A\ndiscard everything" });
     s.show();
     expect(s.content().rules).toBeNull(); // loading
     await tick();
@@ -64,6 +64,12 @@ describe("strategy view", () => {
     s.selectTier("expert");
     await tick();
     expect(s.content().rules).toEqual([]);
+    // The fourth tab is the player's own strategy (M7).
+    const m = tabRect(3);
+    s.click(m.x + 2, m.y + 2);
+    expect(tier()).toBe("custom");
+    await tick();
+    expect(s.content().rules).toEqual(["pair J-A", "discard everything"]);
     // Clicks elsewhere in the view are swallowed; Close closes.
     expect(s.click(200, 150)).toBe(true);
     expect(s.open).toBe(true);
@@ -73,10 +79,12 @@ describe("strategy view", () => {
   });
 
   it("lays out inside the screen", () => {
-    for (let i = 0; i < 3; i++) {
+    expect(LEVELS).toHaveLength(4);
+    for (let i = 0; i < LEVELS.length; i++) {
       const r = tabRect(i);
       expect(r.x).toBeGreaterThan(0);
       expect(r.x + r.w).toBeLessThan(SCREEN.w);
+      if (i) expect(r.x).toBeGreaterThan(tabRect(i - 1).x + tabRect(i - 1).w);
     }
     const tag = strategyTagRect("INTERMEDIATE STRATEGY (S)");
     expect(tag.y + tag.h).toBeLessThanOrEqual(SCREEN.h);

@@ -1,5 +1,5 @@
 // Game page: the cabinet, with the trainer (Free Play, Practice, Lesson).
-import init, { Rules as WasmRules, catalog as wasmCatalog } from "./wasm/ovp_engine.js";
+import init, { Rules as WasmRules, catalog as wasmCatalog, parseRule } from "./wasm/ovp_engine.js";
 import { GameApp, type Table } from "./game/app";
 import { KeyboardSource } from "./input/keyboard";
 import { PointerSource } from "./input/pointer";
@@ -11,7 +11,12 @@ import { Menu } from "./ui/settings";
 import { DEFAULT_PREFS, loadPrefs, safeLocalStorage, savePrefs } from "./ui/prefs";
 import { STARTING_CREDITS } from "./config/feel";
 import { EngineClient } from "./engine/client";
-import { hasPresetStrategy, loadPresetStrategy, strategyHeader } from "./strategies";
+import { hasPresetStrategy, loadLevel, presetRules, strategyHeader } from "./strategies";
+import { CustomStrategies } from "./customStrategies";
+import { StrategyEditor } from "./ui/editor";
+import { CompareScreen } from "./ui/compare";
+import { LEVEL_TAGS } from "./render/strategyView";
+import { LEVEL_NAMES } from "./config/trainer";
 import { Trainer } from "./trainer/trainer";
 import { defaultKv, Stats } from "./trainer/store";
 import { StatsDialog, strategyRuleOrder } from "./ui/statsView";
@@ -20,11 +25,13 @@ import { inRect, strategyTagRect } from "./render/strategyView";
 import { screenButtonRects } from "./render/cabinet";
 import { isGameButton, type ButtonId } from "./input/actions";
 import { keyLabel } from "./ui/settings";
-import type { Tier } from "./engine/protocol";
+import type { Level } from "./engine/protocol";
 
 const store = safeLocalStorage();
 const prefs = loadPrefs(store);
-const custom = new CustomTables(store ?? { getItem: () => null, setItem: () => {} });
+const kv = store ?? { getItem: () => null, setItem: () => {} };
+const custom = new CustomTables(kv);
+const myStrategies = new CustomStrategies(kv);
 
 const canvas = document.getElementById("screen") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d", { alpha: false })!;
@@ -61,17 +68,17 @@ async function main() {
     const t = findTable(prefs.paytableId)!;
     if (t.id.startsWith("custom:")) await engine.request({ kind: "loadCustom", paytable: t });
     else await engine.request({ kind: "load", paytableId: t.id });
-    let text = "";
-    if (hasPresetStrategy(t.id, prefs.tier)) text = await loadPresetStrategy(t.id, prefs.tier);
+    const text = await loadLevel(myStrategies, t.id, prefs.tier);
     if (gen !== strategyGen) return;
     // Requests run in order, so every check posted after this uses it.
     void engine.request({ kind: "setTrainerStrategy", text });
     if (text) {
       const ret = strategyHeader(text, "return")?.split(" ")[0] ?? "?";
       const loss = strategyHeader(text, "loss")?.split(" ")[0] ?? "?";
-      strategy = { loaded: true, key: `${t.id}/${prefs.tier}`, text, info: `${t.name} ${prefs.tier} strategy: return ${ret}, ${loss} credits/hand below optimal.` };
+      strategy = { loaded: true, key: `${t.id}/${prefs.tier}`, text, info: `${t.name} ${LEVEL_NAMES[prefs.tier].toLowerCase()}: return ${ret}, ${loss} credits/hand below optimal.` };
     } else {
-      strategy = { loaded: true, key: null, text: "", info: "No preset strategy for this pay table yet: the trainer checks by Pure EV and rule stats are off." };
+      const why = prefs.tier === "custom" ? "You haven't made a strategy of your own for this pay table (Strategy editor)" : "No preset strategy for this pay table yet (make one in the Strategy editor)";
+      strategy = { loaded: true, key: null, text: "", info: `${why}: the trainer checks by Pure EV and rule stats are off.` };
     }
     menu.refresh();
     app.request(); // the strategy tag shows the loaded level
@@ -107,7 +114,7 @@ async function main() {
       const t = findTable(prefs.paytableId);
       return {
         strategyKey: strategy.key,
-        strategyTitle: t ? `${t.name} ${prefs.tier}` : prefs.tier,
+        strategyTitle: t ? `${t.name} ${LEVEL_NAMES[prefs.tier].toLowerCase()}` : LEVEL_NAMES[prefs.tier],
         ruleOrder: strategyRuleOrder(strategy.text),
         lineOrder: [...app.lineNames(), "No win"],
       };
@@ -148,6 +155,9 @@ async function main() {
     },
     strategyInfo: () => strategy.info,
     showStats: () => statsDialog.show(),
+    showEditor: () => void editor.show(),
+    showCompare: () => compare.show(),
+    hasCustom: () => myStrategies.has(prefs.paytableId),
     toggleFullscreen() {
       if (document.fullscreenElement) void document.exitFullscreen();
       else void document.getElementById("cabinet")!.requestFullscreen();
@@ -156,19 +166,16 @@ async function main() {
 
   // Strategy view and its on-screen tag (Practice and Lesson only).
   const trainerMode = () => prefs.mode === "practice" || prefs.mode === "lesson";
-  const tierName = (t: Tier) => t.toUpperCase();
   const strategyKey = () => keyLabel(prefs.keymap.strategy[0] ?? "").toUpperCase();
   const tagLabel = () => {
     if (!trainerMode() || strategyScreen.open) return null;
     const k = strategyKey();
-    return `${strategy.loaded && !strategy.key ? "NO STRATEGY" : `${tierName(prefs.tier)} STRATEGY`}${k ? ` (${k})` : ""}`;
+    const name = prefs.tier === "custom" ? LEVEL_TAGS.custom : `${LEVEL_TAGS[prefs.tier]} STRATEGY`;
+    return `${strategy.loaded && !strategy.key ? "NO STRATEGY" : name}${k ? ` (${k})` : ""}`;
   };
   app.tag = tagLabel;
   const strategyScreen = new StrategyScreen({
-    loadText: (tier) => {
-      const id = prefs.paytableId;
-      return hasPresetStrategy(id, tier) ? loadPresetStrategy(id, tier) : Promise.resolve("");
-    },
+    loadText: (level) => loadLevel(myStrategies, prefs.paytableId, level),
     tier: () => prefs.tier,
     setTier(t) {
       prefs.tier = t;
@@ -186,7 +193,67 @@ async function main() {
   });
   app.overlay = strategyScreen.draw;
 
-  const dialogsOpen = () => menu.open || statsDialog.open;
+  // Strategy editor and pay table comparison: their own engine worker
+  // ("tools"), so long evaluations never delay the trainer's checks.
+  let tools: EngineClient | null = null;
+  let toolsTable = "";
+  const toolsEngine = async (t: PayTableJson) => {
+    if (!tools) {
+      tools = new EngineClient();
+      toolsTable = "";
+    }
+    const key = JSON.stringify(t);
+    if (key !== toolsTable) {
+      if (t.id.startsWith("custom:")) await tools.request({ kind: "loadCustom", paytable: t });
+      else await tools.request({ kind: "load", paytableId: t.id });
+      toolsTable = key;
+    }
+    return tools;
+  };
+  const cancelTools = () => {
+    tools?.terminate();
+    tools = null;
+  };
+  const allTables = () => [...catalog.paytables, ...custom.list()];
+  const gameLabel = (id: string) => prefs.labels[id] || catalog.games.find((g) => g.id === id)?.label || id;
+  const hasLevel = (tableId: string, l: Level) => (l === "custom" ? myStrategies.has(tableId) : hasPresetStrategy(tableId, l));
+  const editor = new StrategyEditor(document.getElementById("editor") as HTMLDialogElement, {
+    engine: toolsEngine,
+    cancelEngine: cancelTools,
+    table: () => findTable(prefs.paytableId)!,
+    tableLabel: () => app.label(),
+    maxBet: () => app.rules.maxBet,
+    progressive: () => prefs.progressive,
+    level: () => prefs.tier,
+    hasLevel: (l) => hasLevel(prefs.paytableId, l),
+    loadLevel: (l) => loadLevel(myStrategies, prefs.paytableId, l),
+    suggestions: () => {
+      const game = findTable(prefs.paytableId)!.game;
+      return presetRules(catalog.paytables.filter((t) => t.game === game).map((t) => t.id));
+    },
+    parseRule,
+    saveCustom(text, train) {
+      myStrategies.save(prefs.paytableId, text);
+      strategyScreen.reset();
+      if (train && prefs.tier !== "custom") {
+        prefs.tier = "custom";
+        save();
+      }
+      if (prefs.tier === "custom") void loadTrainer();
+    },
+  });
+  const compare = new CompareScreen(document.getElementById("compare") as HTMLDialogElement, {
+    engine: toolsEngine,
+    games: () => catalog.games,
+    gameLabel,
+    tables: allTables,
+    currentTable: () => prefs.paytableId,
+    currentLevel: () => prefs.tier,
+    hasLevel,
+    loadLevel: (id, l) => loadLevel(myStrategies, id, l),
+  });
+
+  const dialogsOpen = () => menu.open || statsDialog.open || editor.open || compare.open;
   /** Every button press (keyboard, pointer) comes through here. */
   const press = (b: ButtonId) => {
     if (b === "strategy") {

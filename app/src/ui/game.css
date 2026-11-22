@@ -39,3 +39,63 @@ dialog#stats { max-width: 980px; font-size: 13px; }
 #stats .bar { display: inline-block; height: 9px; background: #20c040; }
 #stats .bar.d1 { background: var(--yellow); }
 #stats .bar.d2, #stats .bar.d3, #stats .bar.d4p, #stats .bar.doff { background: #e02020; }
+
+/* Strategy editor and pay table comparison (M7). */
+dialog#editor, dialog#compare {
+  background: #06105c; color: var(--white); border: 3px solid var(--red); max-width: 1100px; width: calc(100% - 32px);
+  max-height: calc(100% - 32px); font: 13px/1.45 ui-monospace, monospace; padding: 14px 18px;
+}
+dialog#editor::backdrop, dialog#compare::backdrop { background: #0008; }
+#editor h2, #compare h2 { color: var(--yellow); margin: 0 0 8px; font-size: 18px; }
+#editor h2 .sub { color: #aab; font-size: 13px; font-weight: normal; margin-left: 8px; }
+#editor h4, #compare h4 { color: var(--yellow); margin: 14px 0 4px; font-size: 13px; }
+#editor button, #compare button, #editor select, #compare select, #editor input, #compare input, #editor textarea { font: inherit; }
+#editor button, #compare button { background: #1830c8; color: var(--white); border: 1px solid var(--yellow); padding: 1px 8px; cursor: pointer; }
+#editor button:disabled, #compare button:disabled { opacity: 0.4; cursor: default; }
+#editor button.danger { background: var(--red); }
+#editor .toolbar, #compare .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+#editor .toolbar .sep { width: 1px; height: 18px; background: #34408c; margin: 0 4px; }
+#editor .note, #compare .note { color: #aab; font-size: 12px; }
+#editor .warn, #compare .warn, #editor .bad td.num, #compare .bad { color: #ff6b6b; }
+#editor .good, #compare .good { color: #20c040; }
+#editor .summary { margin: 8px 0; padding: 6px 8px; background: #0a1a8c; border: 1px solid #34408c; min-height: 20px; }
+#editor .summary .delta { color: var(--yellow); }
+#editor .stale, #compare .stale { opacity: 0.55; }
+#editor table, #compare table { border-collapse: collapse; }
+#editor td, #editor th, #compare td, #compare th { padding: 1px 8px 1px 0; text-align: left; vertical-align: top; }
+#editor th, #compare th { color: #aab; font-weight: normal; }
+#editor .num, #compare .num { text-align: right; white-space: nowrap; }
+#editor table.rules { width: 100%; }
+#editor table.rules tbody tr { border-top: 1px solid #1a2470; }
+#editor table.rules.locked { opacity: 0.5; pointer-events: none; }
+#editor table.rules td.rule { width: 100%; }
+#editor table.rules input { width: 100%; box-sizing: border-box; background: #0a1a8c; color: var(--white); border: 1px solid #34408c; padding: 1px 4px; }
+#editor table.rules input:focus { border-color: var(--yellow); outline: none; }
+#editor table.rules tr.bad input { border-color: #ff6b6b; }
+#editor .plain { color: #aab; font-size: 11px; padding-left: 5px; }
+#editor .fixedrule { padding-left: 5px; }
+#editor .grip { cursor: grab; color: #556; user-select: none; }
+#editor tr.dragging { opacity: 0.4; }
+#editor tr.drop { box-shadow: inset 0 2px 0 var(--yellow); }
+#editor .btns { white-space: nowrap; }
+#editor .btns button { padding: 0 5px; margin-left: 2px; }
+#editor td.costly { color: var(--yellow); }
+#editor .import textarea { width: 100%; box-sizing: border-box; background: #0a1a8c; color: var(--white); border: 1px solid #34408c; }
+#editor .confirm { margin: 8px 0; padding: 6px 8px; border: 1px solid var(--yellow); background: #2a1050; }
+#editor .actions button { margin-right: 6px; }
+.card { display: inline-block; min-width: 2.6em; text-align: center; margin-right: 2px; background: #f8f8f0; border-radius: 2px; padding: 0 2px; }
+.card.black { color: #111; }
+.card.red { color: #c81818; }
+.card.out { opacity: 0.3; }
+#compare table.sum td:first-child { padding-right: 24px; }
+#compare .kind { font-size: 11px; padding: 0 4px; border: 1px solid; }
+#compare .kind.added { color: #20c040; }
+#compare .kind.removed { color: #ff6b6b; }
+#compare .kind.moved { color: var(--yellow); }
+#compare tr.total td { border-top: 1px solid #aab; font-weight: bold; }
+#compare td.hands { white-space: nowrap; }
+#compare .lists { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+#compare .lists ol { margin: 4px 0; padding-left: 2.6em; }
+#compare .lists li.added { color: #20c040; }
+#compare .lists li.removed { color: #ff6b6b; text-decoration: line-through; }
+#compare .lists li.moved { color: var(--yellow); }

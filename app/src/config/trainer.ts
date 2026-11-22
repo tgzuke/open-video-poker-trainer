@@ -1,11 +1,19 @@
 // Trainer defaults (SPEC §5). Tune after playtesting.
-import type { Tier } from "../engine/protocol";
+import type { Level, Tier } from "../engine/protocol";
 
 export type Mode = "free" | "practice" | "lesson";
 export type Checking = "strategy" | "ev";
 
 export const MODE_NAMES: Record<Mode, string> = { free: "Free Play", practice: "Practice", lesson: "Lesson" };
 export const CHECKING_NAMES: Record<Checking, string> = { strategy: "Strategy", ev: "Pure EV" };
+
+/** Strategy levels as menus and dialogs name them. */
+export const LEVEL_NAMES: Record<Level, string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  expert: "Expert",
+  custom: "My strategy",
+};
 
 export const DEFAULT_MODE: Mode = "practice";
 export const DEFAULT_CHECKING: Checking = "strategy";

@@ -15,12 +15,18 @@ export type Request =
   | ({ kind: "optimalReturn" } & WagerMsg)
   | ({ kind: "evaluateStrategy"; text: string } & WagerMsg)
   | ({ kind: "generateStrategy"; tier: Tier; seed: string; maxLines?: number } & WagerMsg)
+  | ({ kind: "compareStrategies"; a: string; b: string } & WagerMsg)
   | { kind: "playStrategy"; text: string; hand: string }
   | { kind: "setTrainerStrategy"; text: string }
   | ({ kind: "dealCheck"; cards: number[] } & WagerMsg);
 
 export type Tier = "beginner" | "intermediate" | "expert";
 export const TIERS: Tier[] = ["beginner", "intermediate", "expert"];
+/** Strategy levels the trainer can use: the generated tiers, or the
+ *  player's own strategy for the pay table (made in the editor). */
+export type Level = Tier | "custom";
+export const LEVELS: Level[] = [...TIERS, "custom"];
+export const isTier = (l: Level): l is Tier => l !== "custom";
 
 export interface RuleReport {
   text: string;
@@ -39,6 +45,34 @@ export interface StrategyReport {
   ambiguous: string[];
   ambiguousCount: number;
   rules: RuleReport[];
+  /** Costliest misplays, worst first: credits/hand lost, hand, 0-based
+   *  rule, the strategy's hold and the optimal hold (masks). */
+  worst: { loss: number; hand: string; rule: number; hold: number; best: number }[];
+}
+
+/** Pay table comparison (engine `strategy::compare`), on table B. Returns
+ *  are credits returned per credit bet; `delta` likewise; `effect` and
+ *  `gain` are credits. Rule indices are 0-based in `a` and `b`, the lists
+ *  as compared (combined pat-hand lines split, repeats dropped). */
+export interface Comparison {
+  aOnB: number;
+  bOnB: number;
+  optimalB: number;
+  a: string[];
+  b: string[];
+  changes: { kind: "added" | "removed" | "moved"; rule: string; from: number | null; to: number | null; delta: number }[];
+  differ: number;
+  differences: {
+    aRule: number;
+    bRule: number;
+    prob: number;
+    effect: number;
+    hand: string;
+    aHold: number;
+    bHold: number;
+    gain: number;
+  }[];
+  differenceCount: number;
 }
 export interface StrategyPlay {
   cards: string[];
@@ -103,6 +137,7 @@ export type ResponseData =
   | { kind: "optimalReturn"; ret: number; ms: number }
   | { kind: "evaluateStrategy"; report: StrategyReport; ms: number }
   | { kind: "generateStrategy"; text: string; ms: number }
+  | { kind: "compareStrategies"; comparison: Comparison; ms: number }
   | { kind: "playStrategy"; play: StrategyPlay }
   | { kind: "setTrainerStrategy" }
   | { kind: "dealCheck"; check: DealCheck };

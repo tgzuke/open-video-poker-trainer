@@ -5,8 +5,8 @@ import { DEFAULT_KEYMAP } from "../config/keymap";
 import { SPEED_LEVELS, STARTING_CREDITS } from "../config/feel";
 import { BUTTON_LABELS, BUTTONS, type ButtonId } from "../input/actions";
 import { keymapConflicts } from "../input/keyboard";
-import { TIERS, type Catalog, type PayTableJson, type Tier } from "../engine/protocol";
-import { CHECKING_NAMES, MODE_NAMES, type Checking, type Mode } from "../config/trainer";
+import { LEVELS, type Catalog, type Level, type PayTableJson } from "../engine/protocol";
+import { CHECKING_NAMES, LEVEL_NAMES, MODE_NAMES, type Checking, type Mode } from "../config/trainer";
 import type { Prefs } from "./prefs";
 
 export interface MenuHost {
@@ -21,6 +21,10 @@ export interface MenuHost {
   /** One line about the trainer's strategy (return, loss), or why none. */
   strategyInfo(): string;
   showStats(): void;
+  showEditor(): void;
+  showCompare(): void;
+  /** Does the current pay table have a strategy of the player's own? */
+  hasCustom(): boolean;
 }
 
 const SPEED_NAMES: Record<number, string> = { 1: "slow", 2: "medium", 3: "brisk", 4: "fast", 5: "instant" };
@@ -116,12 +120,12 @@ export class Menu {
         <label>Checking <select id="m-check">${(Object.keys(CHECKING_NAMES) as Checking[]).map((m) => `<option value="${m}" ${m === p.checking ? "selected" : ""}>${CHECKING_NAMES[m]}</option>`).join("")}</select></label>
       </div>
       <div class="row">
-        <label>Strategy <select id="m-tier">${TIERS.map((t) => `<option value="${t}" ${t === p.tier ? "selected" : ""}>${t[0].toUpperCase() + t.slice(1)}</option>`).join("")}</select></label>
+        <label>Strategy <select id="m-tier">${LEVELS.map((t) => `<option value="${t}" ${t === p.tier ? "selected" : ""}>${LEVEL_NAMES[t]}${t === "custom" && !this.host.hasCustom() ? " (none yet)" : ""}</option>`).join("")}</select></label>
         <label>Pure EV grace <input id="m-grace" type="number" min="0" step="0.01" value="${p.grace}" size="6" /> credits at max bet</label>
       </div>
       <div class="note">${esc(this.host.strategyInfo())}</div>
       <div class="note">Practice shows a feedback box; Lesson blocks a wrong draw (try again, then the rule, then the cards). Free Play shows nothing. Every mode records stats.</div>
-      <button id="m-stats">Stats…</button>
+      <div class="row"><button id="m-stats">Stats…</button><button id="m-editor">Strategy editor…</button><button id="m-compare">Compare pay tables…</button></div>
       <h3>Speed</h3>
       <label class="row"><input id="m-speed" type="range" min="${SPEED_LEVELS[0]}" max="${SPEED_LEVELS[SPEED_LEVELS.length - 1]}" step="1" value="${p.speed}" /> <span>${SPEED_NAMES[p.speed]}</span></label>
       <h3>Sound</h3>
@@ -170,7 +174,7 @@ export class Menu {
       this.host.apply(["checking"]);
     };
     $<HTMLSelectElement>("m-tier").onchange = (e) => {
-      p.tier = (e.target as HTMLSelectElement).value as Tier;
+      p.tier = (e.target as HTMLSelectElement).value as Level;
       this.host.apply(["tier"]);
       this.render();
     };
@@ -183,6 +187,14 @@ export class Menu {
     $("m-stats").onclick = () => {
       this.dlg.close();
       this.host.showStats();
+    };
+    $("m-editor").onclick = () => {
+      this.dlg.close();
+      this.host.showEditor();
+    };
+    $("m-compare").onclick = () => {
+      this.dlg.close();
+      this.host.showCompare();
     };
     $<HTMLInputElement>("m-speed").oninput = (e) => {
       p.speed = Number((e.target as HTMLInputElement).value);

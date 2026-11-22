@@ -3,7 +3,7 @@
 // and Lesson) or its key; the tabs switch the strategy level.
 import { LAYOUT, PALETTE as P, SCREEN } from "../config/feel";
 import { FEEDBACK as F } from "../config/trainer";
-import { TIERS, type Tier } from "../engine/protocol";
+import { LEVELS, type Level } from "../engine/protocol";
 import { ruleDisplay } from "../trainer/ruleText";
 import { textWidth, wrap } from "./font";
 import { inRect, type Pix, type Rect } from "./pix";
@@ -13,7 +13,7 @@ export { inRect, type Rect };
 /** What the view shows. `rules` null = loading; empty = no strategy. */
 export interface StrategyContent {
   title: string;
-  tier: Tier;
+  tier: Level;
   rules: string[] | null;
   /** e.g. "RETURN 99.5421%, 0.0019 CREDITS/HAND BELOW OPTIMAL". */
   summary: string;
@@ -21,7 +21,7 @@ export interface StrategyContent {
 }
 
 const V = LAYOUT.strategyView;
-const TIER_NAMES: Record<Tier, string> = { beginner: "BEGINNER", intermediate: "INTERMEDIATE", expert: "EXPERT" };
+export const LEVEL_TAGS: Record<Level, string> = { beginner: "BEGINNER", intermediate: "INTERMEDIATE", expert: "EXPERT", custom: "MY STRATEGY" };
 const LIST_TOP = V.y + 44;
 const LIST_BOTTOM = V.y + V.h - 18;
 export const VISIBLE_ROWS = Math.floor((LIST_BOTTOM - LIST_TOP) / V.row);
@@ -30,7 +30,7 @@ const TEXT_CHARS = Math.floor((V.x + V.w - 10 - TEXT_X) / 6);
 
 export function tabRect(i: number): Rect {
   const w = V.tabW;
-  const total = TIERS.length * w + (TIERS.length - 1) * 6;
+  const total = LEVELS.length * w + (LEVELS.length - 1) * 6;
   return { x: Math.round((SCREEN.w - total) / 2) + i * (w + 6), y: V.y + 18, w, h: 13 };
 }
 export const CLOSE_RECT: Rect = { x: V.x + V.w - 50, y: V.y + V.h - 15, w: 44, h: 12 };
@@ -63,18 +63,18 @@ export function drawStrategyView(p: Pix, c: StrategyContent, scroll: number) {
   box(p, CLOSE_RECT, P.betColumnBg, P.frame);
   centeredIn(p, "CLOSE", CLOSE_RECT, P.white);
 
-  TIERS.forEach((t, i) => {
+  LEVELS.forEach((t, i) => {
     const r = tabRect(i);
     const on = t === c.tier;
     box(p, r, on ? P.payHighlightBg : P.fieldDark, on ? P.white : P.frame);
-    centeredIn(p, TIER_NAMES[t], r, on ? P.white : P.payText);
+    centeredIn(p, LEVEL_TAGS[t], r, on ? P.white : P.payText);
   });
   if (c.summary) p.text(c.summary, Math.round((SCREEN.w - textWidth(c.summary)) / 2), V.y + 35, 1, F.dim);
 
   if (c.rules === null) {
     p.text("LOADING...", TEXT_X, LIST_TOP, 1, F.dim);
   } else if (c.rules.length === 0) {
-    p.text("NO PRESET STRATEGY FOR THIS PAY TABLE.", TEXT_X, LIST_TOP, 1, F.dim);
+    p.text(c.tier === "custom" ? "NO STRATEGY OF YOUR OWN FOR THIS PAY TABLE YET: MAKE ONE IN MENU > STRATEGY EDITOR." : "NO PRESET STRATEGY FOR THIS PAY TABLE.", TEXT_X, LIST_TOP, 1, F.dim);
   } else {
     const rows = strategyRows(c.rules);
     const top = Math.min(scroll, Math.max(0, rows.length - VISIBLE_ROWS));

@@ -19,6 +19,14 @@ export class EngineClient {
     };
   }
 
+  /** Stops the worker (e.g. to cancel a long generation). Pending requests
+   *  fail; the client can't be used afterwards. */
+  terminate() {
+    this.worker.terminate();
+    for (const p of this.pending.values()) p.reject(new Error("cancelled"));
+    this.pending.clear();
+  }
+
   request<K extends Request["kind"]>(req: Extract<Request, { kind: K }>): Promise<Extract<ResponseData, { kind: K }>> {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
