@@ -51,6 +51,10 @@ export class Sfx {
     const notes = big ? [523, 659, 784, 1047, 1319] : [523, 659, 784];
     notes.forEach((f, i) => this.tone(f, 0.09, atMs / 1000 + i * 0.07, "square"));
   }
+  /** Dealt hand already pays: a short rising two-note chime. */
+  dealtWin(atMs: number) {
+    [784, 1175].forEach((f, i) => this.tone(f, 0.08, atMs / 1000 + i * 0.06, "triangle", 0.9));
+  }
   /** Count-up ticks spread over `durMs`. */
   countUp(atMs: number, durMs: number) {
     const n = Math.min(24, Math.max(1, Math.round(durMs / 40)));

@@ -106,6 +106,8 @@ export class GameApp {
         case "deal":
           this.sfx.cards([0, 1, 2, 3, 4].map((i) => i * t.cardStepMs));
           revealEnd = 4 * t.cardStepMs + t.flipMs;
+          // A dealt hand that already pays gets its own cue, as on a cabinet.
+          if (this.state.dealtCategory !== null) this.sfx.dealtWin(revealEnd);
           break;
         case "draw":
           this.sfx.cards(e.replaced.map((_, j) => j * t.cardStepMs));

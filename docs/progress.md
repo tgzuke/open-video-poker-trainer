@@ -335,3 +335,7 @@ frames observed). Game bundle 32 kB JS (11.5 kB gzip) + 271 kB wasm.
 - Sound effects (pitches/lengths in `audio/sfx.ts`), default volume 0.35.
 - Bet One on `N` (still provisional); clicking a card holds it.
 - Auto-refill at 0 credits (`AUTO_REFILL`), starting credits 1000.
+
+### M4 review
+- Owner kept the endless win flash and the dense DDB pay table as is.
+- Added a dealt-win chime: a short rising two-note cue (`Sfx.dealtWin`) when the dealt hand already pays, timed to the last card reveal. Verified in Chrome: it fired on exactly the 37 paying deals out of 200, with no errors.
