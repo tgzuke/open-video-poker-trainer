@@ -3,6 +3,7 @@
 import { LAYOUT } from "../config/feel";
 import { cardX } from "../render/cabinet";
 import type { Pix } from "../render/pix";
+import type { Mode } from "../config/trainer";
 import type { ButtonId, InputSource } from "./actions";
 
 export class PointerSource implements InputSource {
@@ -11,6 +12,8 @@ export class PointerSource implements InputSource {
   constructor(
     private canvas: HTMLCanvasElement,
     private pix: Pix,
+    /** Current trainer mode (the card layout depends on it). */
+    private mode: () => Mode = () => "free",
   ) {}
 
   start(press: (b: ButtonId) => void) {
@@ -23,7 +26,8 @@ export class PointerSource implements InputSource {
       const C = LAYOUT.cards;
       if (y < LAYOUT.held.y || y > C.y + C.h) return;
       for (let i = 0; i < 5; i++) {
-        if (x >= cardX(i) && x <= cardX(i) + C.w) {
+        const cx = cardX(i, this.mode());
+        if (x >= cx && x <= cx + C.w) {
           press(`hold${i + 1}` as ButtonId);
           return;
         }

@@ -1,5 +1,7 @@
 // Draws the whole cabinet screen from the game state and the animation.
 import { LAYOUT, PALETTE as P, SCREEN } from "../config/feel";
+import { FEEDBACK as F, type Mode } from "../config/trainer";
+import type { Feedback, LessonPrompt } from "../trainer/trainer";
 import type { GameState } from "../game/model";
 import type { Anim } from "./anim";
 import { RANK_TEXT, SUIT_IS_RED, textWidth } from "./font";
@@ -15,13 +17,73 @@ export interface CabinetView {
   label: string;
   rank(card: number): number;
   suit(card: number): number;
+  trainer: TrainerView;
+}
+
+export interface TrainerView {
+  mode: Mode;
+  feedback: Feedback | null;
+  lesson: LessonPrompt | null;
 }
 
 const C = LAYOUT.cards;
 
-export function cardX(i: number): number {
+/** Left edge of card i; in Practice the cards sit left of the feedback box. */
+export function cardX(i: number, mode: Mode = "free"): number {
   const total = 5 * C.w + 4 * C.gap;
-  return (SCREEN.w - total) / 2 + i * (C.w + C.gap);
+  const left = mode === "practice" ? LAYOUT.practiceCardsX : (SCREEN.w - total) / 2;
+  return left + i * (C.w + C.gap);
+}
+
+/** Splits text into lines of at most `max` characters, at spaces. */
+export function wrap(text: string, max: number): string[] {
+  const out: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    for (let w = word; w.length; ) {
+      const piece = w.slice(0, max);
+      w = w.slice(max);
+      if (!line) line = piece;
+      else if (line.length + 1 + piece.length <= max) line += " " + piece;
+      else {
+        out.push(line);
+        line = piece;
+      }
+    }
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+const COLORS = { green: F.green, yellow: F.yellow, red: F.red };
+
+function drawFeedback(p: Pix, f: Feedback | null) {
+  const B = LAYOUT.feedback;
+  p.rect(B.x - 2, B.y - 2, B.w + 4, B.h + 4, P.frame);
+  p.rect(B.x, B.y, B.w, B.h, F.boxBg);
+  const max = Math.floor((B.w - 4) / 6);
+  if (!f) {
+    centered(p, "FEEDBACK", B.x + B.w / 2, B.y + 40, 1, F.dim);
+    return;
+  }
+  p.rect(B.x + 2, B.y + 2, B.w - 4, 13, COLORS[f.color]);
+  centered(p, f.title, B.x + B.w / 2, B.y + 5, 1, F.ink);
+  let y = B.y + 20;
+  const lines: [string, string][] = [];
+  if (f.rule) {
+    lines.push([f.color === "green" ? "PLAYED" : "BEST PLAY", F.dim]);
+    for (const l of wrap(f.rule.toUpperCase(), max)) lines.push([l, F.text]);
+  }
+  const room = Math.floor((B.y + B.h - 12 - y) / 9);
+  if (lines.length > room) {
+    lines.length = room;
+    lines[room - 1] = [lines[room - 1][0].slice(0, max - 2) + "..", F.text];
+  }
+  for (const [l, c] of lines) {
+    p.text(l, B.x + 3, y, 1, c);
+    y += 9;
+  }
+  if (f.cost > 0) p.text(`COST ${f.cost.toFixed(2)}`, B.x + 3, B.y + B.h - 10, 1, F.text);
 }
 
 function centered(p: Pix, s: string, cx: number, y: number, scale: number, color: string) {
@@ -94,11 +156,14 @@ export function drawCabinet(p: Pix, v: CabinetView, anim: Anim, now: number) {
   } else msg = "GAME OVER";
   // Hide the result until the drawn cards are face up.
   const settled = [0, 1, 2, 3, 4].every((i) => anim.card(i, now).face && anim.card(i, now).width === 1);
-  if (s.phase === "dealt" || settled) centered(p, msg, SCREEN.w / 2, LAYOUT.message.y, 1, msgColor);
+  const lesson = s.phase === "dealt" ? v.trainer.lesson : null;
+  if (lesson) centered(p, lesson.message, SCREEN.w / 2, LAYOUT.message.y, 1, F.yellow);
+  else if (s.phase === "dealt" || settled) centered(p, msg, SCREEN.w / 2, LAYOUT.message.y, 1, msgColor);
+  const mode = v.trainer.mode;
 
   // Cards.
   for (let i = 0; i < 5; i++) {
-    const x = cardX(i);
+    const x = cardX(i, mode);
     if (!hand) {
       drawCardBack(p, x, C.y, C.w);
       continue;
@@ -109,7 +174,15 @@ export function drawCabinet(p: Pix, v: CabinetView, anim: Anim, now: number) {
     if (look.face) drawCardFace(p, cx, C.y, w, v.rank(hand.cards[i]), v.suit(hand.cards[i]));
     else drawCardBack(p, cx, C.y, w);
     if (s.phase === "dealt" && hand.held[i]) centered(p, "HELD", x + C.w / 2, LAYOUT.held.y, 1, P.held);
+    if (lesson?.hint != null && (lesson.hint >> i) & 1) {
+      // Lesson hint: a bright frame around each card to hold.
+      p.rect(x - 3, C.y - 3, C.w + 6, 2, F.hint);
+      p.rect(x - 3, C.y + C.h + 1, C.w + 6, 2, F.hint);
+      p.rect(x - 3, C.y - 1, 2, C.h + 2, F.hint);
+      p.rect(x + C.w + 1, C.y - 1, 2, C.h + 2, F.hint);
+    }
   }
+  if (mode === "practice") drawFeedback(p, v.trainer.feedback);
 
   // Meters.
   const M = LAYOUT.meters;

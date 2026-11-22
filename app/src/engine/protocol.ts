@@ -15,7 +15,9 @@ export type Request =
   | ({ kind: "optimalReturn" } & WagerMsg)
   | ({ kind: "evaluateStrategy"; text: string } & WagerMsg)
   | ({ kind: "generateStrategy"; tier: Tier; seed: string; maxLines?: number } & WagerMsg)
-  | { kind: "playStrategy"; text: string; hand: string };
+  | { kind: "playStrategy"; text: string; hand: string }
+  | { kind: "setTrainerStrategy"; text: string }
+  | ({ kind: "dealCheck"; cards: number[] } & WagerMsg);
 
 export type Tier = "beginner" | "intermediate" | "expert";
 export const TIERS: Tier[] = ["beginner", "intermediate", "expert"];
@@ -77,6 +79,22 @@ export interface HoldEvsResult {
   best: number; // mask of the highest-EV hold
 }
 
+/** Trainer data for one dealt hand (engine `strategy::trainer`). Masks:
+ *  bit i keeps card i. */
+export interface DealCheck {
+  evs: number[]; // 32 hold EVs, credits
+  tie: number[]; // holds with equal tie[] have exactly equal EV
+  best: number;
+  strategy: null | {
+    rule: number | null;
+    ruleText: string | null;
+    hold: number;
+    matching: { rule: number; text: string; hold: number }[];
+    describes: (number | null)[]; // first rule describing each hold
+    distance: (number | null)[]; // rule distance per hold; null = off-strategy
+  };
+}
+
 export type ResponseData =
   | { kind: "catalog"; catalog: Catalog }
   | { kind: "load"; buildMs: number; rebuilt: boolean }
@@ -85,7 +103,9 @@ export type ResponseData =
   | { kind: "optimalReturn"; ret: number; ms: number }
   | { kind: "evaluateStrategy"; report: StrategyReport; ms: number }
   | { kind: "generateStrategy"; text: string; ms: number }
-  | { kind: "playStrategy"; play: StrategyPlay };
+  | { kind: "playStrategy"; play: StrategyPlay }
+  | { kind: "setTrainerStrategy" }
+  | { kind: "dealCheck"; check: DealCheck };
 
 export interface Envelope<T> {
   id: number;

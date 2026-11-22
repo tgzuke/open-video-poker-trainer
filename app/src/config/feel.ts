@@ -64,6 +64,9 @@ export const LAYOUT = {
   message: { y: 120 },
   held: { y: 128 },
   cards: { y: 137, w: 64, h: 88, gap: 14 },
+  /** Practice mode: cards move left to make room for the feedback box. */
+  practiceCardsX: 10,
+  feedback: { x: 394, y: 137, w: 78, h: 88 },
   meters: { labelY: 232, valueY: 242, left: 30, right: 450 },
   gameLabel: { y: 259 },
 };

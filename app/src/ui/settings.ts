@@ -1,10 +1,12 @@
 // Settings menu (mouse-driven, SPEC §6.4): game and pay table, progressive,
-// speed, sound, key remapping, game labels, credits, full screen.
+// trainer mode and strategy, speed, sound, key remapping, game labels,
+// credits, full screen.
 import { DEFAULT_KEYMAP } from "../config/keymap";
 import { SPEED_LEVELS, STARTING_CREDITS } from "../config/feel";
 import { BUTTON_LABELS, BUTTONS, type ButtonId } from "../input/actions";
 import { keymapConflicts } from "../input/keyboard";
-import type { Catalog, PayTableJson } from "../engine/protocol";
+import { TIERS, type Catalog, type PayTableJson, type Tier } from "../engine/protocol";
+import { CHECKING_NAMES, MODE_NAMES, type Checking, type Mode } from "../config/trainer";
 import type { Prefs } from "./prefs";
 
 export interface MenuHost {
@@ -16,6 +18,9 @@ export interface MenuHost {
   apply(changed: (keyof Prefs)[]): void;
   resetCredits(): void;
   toggleFullscreen(): void;
+  /** One line about the trainer's strategy (return, loss), or why none. */
+  strategyInfo(): string;
+  showStats(): void;
 }
 
 const SPEED_NAMES: Record<number, string> = { 1: "slow", 2: "medium", 3: "brisk", 4: "fast", 5: "instant" };
@@ -70,6 +75,11 @@ export class Menu {
     this.render();
   }
 
+  /** Re-render if open (e.g. when strategy info arrives). */
+  refresh() {
+    if (this.open && !this.waitingFor) this.render();
+  }
+
   private render() {
     const p = this.host.prefs;
     const c = this.host.catalog;
@@ -100,6 +110,18 @@ export class Menu {
       ${lock ? `<div class="note">Finish the hand to change the game.</div>` : ""}
       <label>Game label <input id="m-label" value="${esc(game ? p.labels[game.id] ?? "" : "")}" placeholder="${esc(game?.label ?? "")}" size="22" /></label>
       <label>Progressive royal (credits at max bet) <input id="m-prog" type="number" min="0" step="1" value="${p.progressive ?? ""}" placeholder="none" size="8" ${lock} /></label>
+      <h3>Trainer</h3>
+      <div class="row">
+        <label>Mode <select id="m-mode">${(Object.keys(MODE_NAMES) as Mode[]).map((m) => `<option value="${m}" ${m === p.mode ? "selected" : ""}>${MODE_NAMES[m]}</option>`).join("")}</select></label>
+        <label>Checking <select id="m-check">${(Object.keys(CHECKING_NAMES) as Checking[]).map((m) => `<option value="${m}" ${m === p.checking ? "selected" : ""}>${CHECKING_NAMES[m]}</option>`).join("")}</select></label>
+      </div>
+      <div class="row">
+        <label>Strategy <select id="m-tier">${TIERS.map((t) => `<option value="${t}" ${t === p.tier ? "selected" : ""}>${t[0].toUpperCase() + t.slice(1)}</option>`).join("")}</select></label>
+        <label>Pure EV grace <input id="m-grace" type="number" min="0" step="0.01" value="${p.grace}" size="6" /> credits at max bet</label>
+      </div>
+      <div class="note">${esc(this.host.strategyInfo())}</div>
+      <div class="note">Practice shows a feedback box; Lesson blocks a wrong draw (try again, then the rule, then the cards). Free Play shows nothing. Every mode records stats.</div>
+      <button id="m-stats">Stats…</button>
       <h3>Speed</h3>
       <label class="row"><input id="m-speed" type="range" min="${SPEED_LEVELS[0]}" max="${SPEED_LEVELS[SPEED_LEVELS.length - 1]}" step="1" value="${p.speed}" /> <span>${SPEED_NAMES[p.speed]}</span></label>
       <h3>Sound</h3>
@@ -137,6 +159,29 @@ export class Menu {
       p.progressive = raw === "" || !Number.isInteger(v) || v < 0 ? null : v;
       this.host.apply(["progressive"]);
       this.render();
+    };
+    $<HTMLSelectElement>("m-mode").onchange = (e) => {
+      p.mode = (e.target as HTMLSelectElement).value as Mode;
+      this.host.apply(["mode"]);
+    };
+    $<HTMLSelectElement>("m-check").onchange = (e) => {
+      p.checking = (e.target as HTMLSelectElement).value as Checking;
+      this.host.apply(["checking"]);
+    };
+    $<HTMLSelectElement>("m-tier").onchange = (e) => {
+      p.tier = (e.target as HTMLSelectElement).value as Tier;
+      this.host.apply(["tier"]);
+      this.render();
+    };
+    $<HTMLInputElement>("m-grace").onchange = (e) => {
+      const v = Number((e.target as HTMLInputElement).value);
+      if (Number.isFinite(v) && v >= 0) p.grace = v;
+      this.host.apply(["grace"]);
+      this.render();
+    };
+    $("m-stats").onclick = () => {
+      this.dlg.close();
+      this.host.showStats();
     };
     $<HTMLInputElement>("m-speed").oninput = (e) => {
       p.speed = Number((e.target as HTMLInputElement).value);

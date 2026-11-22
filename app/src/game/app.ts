@@ -8,6 +8,8 @@ import { Sfx } from "../audio/sfx";
 import type { Rules as WasmRules } from "../wasm/ovp_engine.js";
 import { apply, cryptoRng, initialState, type GameEvent, type GameState, type Rng, type Rules } from "./model";
 import { modelRules, payGrid } from "./rules";
+import type { Mode } from "../config/trainer";
+import type { Trainer } from "../trainer/trainer";
 
 export interface Table {
   wasm: WasmRules;
@@ -27,6 +29,11 @@ export class GameApp {
   /** Latency probe: time from button press to the frame that shows it. */
   lastInputToFrameMs = 0;
   private pendingInputAt: number | null = null;
+  /** Lesson mode: a Draw pressed before the hand's check arrived. */
+  private queuedDraw = false;
+  /** Trainer (null = plain game, as in tests). */
+  trainer: Trainer | null = null;
+  mode: () => Mode = () => "free";
 
   constructor(
     private pix: Pix,
@@ -54,6 +61,7 @@ export class GameApp {
       label: t.label.toUpperCase(),
       rank: (c) => t.wasm.rank(c),
       suit: (c) => t.wasm.suit(c),
+      trainer: { mode: "free", feedback: null, lesson: null },
     };
   }
 
@@ -70,6 +78,10 @@ export class GameApp {
     return true;
   }
 
+  lineNames(): string[] {
+    return this.table.lineNames;
+  }
+
   setSpeed(speed: number) {
     this.anim.speed = speed;
   }
@@ -80,15 +92,51 @@ export class GameApp {
     this.request();
   }
 
+  /** Wire a trainer in; it re-renders (and runs a queued Draw) when a
+   *  check arrives. */
+  attachTrainer(trainer: Trainer, mode: () => Mode) {
+    this.trainer = trainer;
+    this.mode = mode;
+    trainer.onChange = () => {
+      if (this.queuedDraw && trainer.checkReady) {
+        this.queuedDraw = false;
+        this.press("dealDraw");
+      }
+      this.request();
+    };
+  }
+
   press(b: ButtonId) {
     const now = performance.now();
     this.pendingInputAt = now;
-    const { state, events } = apply(this.state, buttonToAction(b), this.rules, this.rng, {
+    const action = buttonToAction(b);
+    if (action.type === "dealDraw" && this.state.phase === "dealt" && this.trainer) {
+      const gate = this.trainer.gate(this.state.hands[0].held);
+      if (gate === "wait") {
+        this.queuedDraw = true;
+        return;
+      }
+      if (gate === "block") {
+        this.sfx.buzz();
+        this.request();
+        return;
+      }
+    }
+    const { state, events } = apply(this.state, action, this.rules, this.rng, {
       startingCredits: STARTING_CREDITS,
       autoRefill: AUTO_REFILL,
     });
     if (events.some((e) => e.type === "deal")) this.anim.clearFlash();
     this.state = state;
+    if (this.trainer) {
+      for (const e of events) {
+        if (e.type === "deal") this.trainer.dealt(e.cards, state.bet);
+        if (e.type === "draw") {
+          const cat = state.hands[0].category;
+          this.trainer.drawn(state.lastWin, cat !== null && cat < this.table.lineNames.length ? this.table.lineNames[cat] : "No win");
+        }
+      }
+    }
     this.anim.onEvents(events, now);
     this.sounds(events);
     this.onChange(state);
@@ -139,6 +187,11 @@ export class GameApp {
   draw(now: number) {
     this.frame = 0;
     this.view.state = this.state;
+    this.view.trainer = {
+      mode: this.mode(),
+      feedback: this.trainer?.feedback ?? null,
+      lesson: this.trainer?.lesson ?? null,
+    };
     drawCabinet(this.pix, this.view, this.anim, now);
     if (this.pendingInputAt !== null) {
       this.lastInputToFrameMs = performance.now() - this.pendingInputAt;

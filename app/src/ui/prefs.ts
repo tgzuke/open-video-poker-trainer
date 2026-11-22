@@ -4,6 +4,8 @@ import { DEFAULT_KEYMAP } from "../config/keymap";
 import { DEFAULT_SOUND, DEFAULT_SPEED, SPEED_LEVELS, STARTING_CREDITS } from "../config/feel";
 import { BUTTONS, type ButtonId } from "../input/actions";
 import type { Keymap } from "../input/keyboard";
+import { DEFAULT_CHECKING, DEFAULT_GRACE, DEFAULT_MODE, DEFAULT_TIER, type Checking, type Mode } from "../config/trainer";
+import { TIERS, type Tier } from "../engine/protocol";
 
 export interface Prefs {
   paytableId: string;
@@ -17,6 +19,12 @@ export interface Prefs {
   labels: Record<string, string>;
   credits: number;
   bet: number;
+  /** Trainer (SPEC §5). */
+  mode: Mode;
+  checking: Checking;
+  /** Pure EV grace margin, credits at max bet. */
+  grace: number;
+  tier: Tier;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -29,6 +37,10 @@ export const DEFAULT_PREFS: Prefs = {
   labels: {},
   credits: STARTING_CREDITS,
   bet: 1,
+  mode: DEFAULT_MODE,
+  checking: DEFAULT_CHECKING,
+  grace: DEFAULT_GRACE,
+  tier: DEFAULT_TIER,
 };
 
 const KEY = "ovp.prefs.v1";
@@ -65,6 +77,10 @@ export function loadPrefs(store: Store | null): Prefs {
     p.labels = Object.fromEntries(Object.entries(r.labels).filter(([, v]) => typeof v === "string")) as Record<string, string>;
   if (Number.isInteger(r.credits) && (r.credits as number) >= 0) p.credits = r.credits as number;
   if (Number.isInteger(r.bet) && (r.bet as number) >= 1) p.bet = r.bet as number;
+  if (r.mode === "free" || r.mode === "practice" || r.mode === "lesson") p.mode = r.mode;
+  if (r.checking === "strategy" || r.checking === "ev") p.checking = r.checking;
+  if (typeof r.grace === "number" && Number.isFinite(r.grace) && r.grace >= 0) p.grace = r.grace;
+  if (TIERS.includes(r.tier as Tier)) p.tier = r.tier as Tier;
   return p;
 }
 
