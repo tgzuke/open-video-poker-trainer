@@ -38,10 +38,23 @@ the in-game menu.
    not look like it involves money.
 6. **Visibility:** start with **Restricted** or **Draft** for the alpha, then
    Public when ready.
-7. **Screenshots:** `release/screenshots/` (Practice feedback, strategy
-   view).
+7. **Cover image:** `docs/images/cover-630x500.png`. **Screenshots:**
+   `release/screenshots/` (Practice feedback, strategy view).
 8. **Classification / genre:** "Educational", or "Card Game" under games.
    The text below states that it is not gambling.
+
+## Cover image (630 × 500)
+
+`docs/images/cover-630x500.png` is drawn by `app/cover.html` /
+`app/src/cover.ts` with the game's own renderer, font and palette. To
+regenerate it, with the dev server running (`npm run dev` in `app/`):
+
+```sh
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+  --hide-scrollbars --force-device-scale-factor=1 --window-size=630,500 \
+  --virtual-time-budget=4000 --screenshot=docs/images/cover-630x500.png \
+  http://localhost:5173/cover.html
+```
 
 ## Suggested page text
 
