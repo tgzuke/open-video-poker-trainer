@@ -515,3 +515,99 @@ the editor and comparison screen are now Milestone 7).
 - Embed size 960×540 vs. larger; fullscreen.
 - The bottom-right STATS/MENU buttons.
 
+
+## Milestone 7: Strategy editor and pay table comparison
+
+### What was built
+- **Strategy editor** (Menu > Strategy editor), for the current pay table:
+  - reorder rules by dragging or with ▲▼; add, remove and edit rules in file
+    notation, with suggestions drawn from every preset rule of the game;
+  - "discard everything" is pinned as the last line;
+  - bad lines and repeated rules are flagged on the line itself;
+  - after every change the exact evaluator reruns and shows the return, the
+    EV loss in credits per hand, the change from the last edit and since
+    loading, completeness (ambiguous hands, with examples), each rule's
+    numbers, and the 10 costliest misplays;
+  - undo, plus load any level, generate (with cancel), import, and export;
+  - an unsaved-changes prompt on close.
+- **"My strategy"**: saving stores one strategy of your own per pay table
+  (locally), in the strategy file format with exact numbers in its header.
+  It is a fourth trainer level: in the menu, as a tab in the on-screen
+  strategy view, and in the tag ("MY STRATEGY (S)"). "Save and train with it"
+  selects it.
+- **Compare pay tables** (Menu): pick table A and B and a level for each.
+  The defaults are A = the game's full-pay preset and B = the current
+  table. The screen shows:
+  - optimal, B's strategy and A's strategy, all played on B;
+  - each rule added, removed or moved, with its EV effect on B;
+  - the hands played differently, grouped by deciding rule, with an
+    example hand;
+  - both lists, with the changes marked.
+  How the effects are defined is in `docs/strategy-format.md`; they add up
+  exactly to the total.
+- CLI: `ovp strategy compare A.txt B.txt -p TABLE_B`.
+- Both screens use a second engine worker, so a long evaluation or a
+  generation never delays the trainer's checks.
+
+### Verified
+- Rust (57 tests, 5 new):
+  - edit steps always turn A into B, and every intermediate list is a
+    valid strategy (500 random pairs, both directions);
+  - on full-deck presets, the endpoints equal the exact evaluator's results,
+    and the change effects and the group effects each add up to the total
+    within 1e-12;
+  - on reduced decks, each change's effect equals the difference of the two
+    lists played on every single deal;
+  - splitting pat lines leaves play identical.
+- App (64 tests, 12 new): the editor model, live evaluation (only the
+  latest request reports), a saved strategy's header matching a fresh exact
+  evaluation, the comparison through the worker handler, the defaults, and
+  the level persisting in prefs.
+- In Chrome on the dev build:
+  - the editor matches the shipped numbers;
+  - edits update live;
+  - undo works;
+  - "Save and train" switches the tag and adds the tab;
+  - the comparison renders;
+  - generation can be cancelled and evaluation recovers afterwards;
+  - beginner generation finished in 11 s and matched the shipped list;
+  - no console errors.
+- The itch.io release zip builds (65 files, 281 kB).
+
+### Performance (wasm, in the browser)
+- Re-evaluation after an edit: ~0.6 s. Evaluation now computes draw counts
+  once per class, about 25% faster than before.
+- Comparison: ~1.5 s, including loading the second table's game.
+
+### Finding: some shipped strategies aren't the best at their level
+The comparison shows that 10 of the 60 shipped strategies are beaten on their
+own table by another table's list at the same level (same line cap and
+qualifiers). The loss is in credits per hand; "from" is the table whose list
+does better.
+
+| Table, level | Own loss | Best sibling | From |
+|---|---|---|---|
+| BP 7/5 intermediate | 0.00155 | 0.00021 | BP 8/5 |
+| BP 6/5 intermediate | 0.00164 | 0.00048 | BP 8/5 |
+| DB 10/7 intermediate | 0.00456 | 0.00262 | DB 9/7 |
+| BP 8/5 beginner | 0.01454 | 0.01176 | BP 6/5 |
+| DDB 6/5 intermediate | 0.00232 | 0.00197 | DDB 7/5 |
+| JoB 9/5, 8/5, 7/5, 6/5 intermediate | 0.00022–0.00026 | ~0.00013 | JoB 8/6 |
+| DDB 9/5 expert | 0.000024 | 0.000014 | DDB 8/5 |
+
+The generator's local search gets stuck. An easy fix is to also start the
+search from each sibling table's list and keep the best result. It's never
+worse, and costs more generation time (`--all` would take ~1 hour).
+
+### Open questions
+- Regenerate with sibling seeding (above)? It changes 10+ shipped files.
+- Rule changes are matched by exact text. A reworded rule (e.g. a different
+  qualifier) shows as a removal plus an addition whose effects mostly
+  cancel. The "hands played differently" table is the clearer view of what
+  actually changes.
+
+### For playtesting
+- Editor layout and density, drag-and-drop feel, the suggestion list.
+- Whether the compare screen's two views (rule changes, hands played
+  differently) read well; which one should come first.
+- Naming: "My strategy" (menu) / "MY STRATEGY" (tag and tab).
