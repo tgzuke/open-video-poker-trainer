@@ -3,8 +3,8 @@
 # paytable: bonus-poker-8-5
 # bet: 5
 # tier: beginner (max 15 lines)
-# return: 98.875107%  optimal: 99.165973%
-# loss: 0.014543 credits/hand (0.290866 points of return)
+# return: 98.930877%  optimal: 99.165973%
+# loss: 0.011755 credits/hand (0.235096 points of return)
 # complete: yes
 #
 # per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
@@ -14,12 +14,12 @@ three of a kind                                                           # fire
 two pair                                                                  # fires   4.7539%  wrong   0.0000%  loss 0.000000
 4 to a straight flush                                                     # fires   0.1958%  wrong   0.0000%  loss 0.000000
 pair J-A                                                                  # fires  12.9846%  wrong   0.0000%  loss 0.000000
-3 to a royal h=3                                                          # fires   0.4022%  wrong   0.0000%  loss 0.000000
-3 to a royal h=2                                                          # fires   0.6889%  wrong   0.0000%  loss 0.000000
+3 to a royal                                                              # fires   1.0911%  wrong   0.0000%  loss 0.000000
 4 to a flush                                                              # fires   3.2902%  wrong   0.0000%  loss 0.000000
-pair                                                                      # fires  28.2187%  wrong   0.0097%  loss 0.000029
+pair 2-T                                                                  # fires  28.2187%  wrong   0.0097%  loss 0.000029
 4 to a straight w=2                                                       # fires   2.2717%  wrong   0.0000%  loss 0.000000
 2 high cards suited prefer low                                            # fires   6.8247%  wrong   0.4553%  loss 0.000797
-2 high cards prefer low                                                   # fires  16.1945%  wrong   1.4669%  loss 0.002679
-1 high card prefer low                                                    # fires  17.5455%  wrong   1.8100%  loss 0.002783
-discard everything                                                        # fires   3.7307%  wrong   0.4848%  loss 0.002191
+3 to a straight flush                                                     # fires   2.5284%  wrong   0.7046%  loss 0.002471
+2 high cards prefer low                                                   # fires  15.5458%  wrong   0.9696%  loss 0.001695
+1 high card                                                               # fires  16.1506%  wrong   0.9401%  loss 0.000700
+discard everything                                                        # fires   3.2459%  wrong   0.0000%  loss 0.000000

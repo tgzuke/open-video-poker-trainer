@@ -403,26 +403,97 @@ fn cmd_verify(o: &Opts) -> Result<bool, String> {
     Ok(ok)
 }
 
-/// Generates the requested tiers (each warm-started from the one below) and
-/// returns (tier, file text, report, seconds) for each.
+/// Generates the requested tiers (each warm-started from the one below, and
+/// from `extra(tier)`, e.g. other tables' lists) and returns (tier, file
+/// text, report, seconds) for each.
 fn generate_for(
     an: &Analyzer,
     table: &PayTable,
     w: Wager,
     tiers: &[strategy::Tier],
+    extra: &dyn Fn(&strategy::Tier) -> Vec<Strategy>,
 ) -> Result<Vec<(strategy::Tier, String, strategy::Report, f64)>, String> {
     let pays = an.game.pays(table, w)?;
     let mut out = Vec::new();
     let mut seed: Option<Strategy> = None;
     for tier in tiers {
         let t = Instant::now();
-        let g = strategy::generate(an, &pays, tier, seed.as_ref());
+        let more = extra(tier);
+        let seeds: Vec<&Strategy> = seed.iter().chain(more.iter()).collect();
+        let g = strategy::generate(an, &pays, tier, &seeds);
         let secs = t.elapsed().as_secs_f64();
         let (text, report) = check_and_render(an, table, w, tier, &pays, &g)?;
         seed = Some(g.strategy);
         out.push((*tier, text, report, secs));
     }
     Ok(out)
+}
+
+/// Same-tier lists of the game's other preset tables, read from `dir` (the
+/// ones already written in this run, or the previous ones).
+fn sibling_lists(dir: &str, tables: &[PayTable], table: &PayTable, tier: &str) -> Vec<Strategy> {
+    tables
+        .iter()
+        .filter(|t| t.game == table.game && t.id != table.id)
+        .filter_map(|t| std::fs::read_to_string(format!("{dir}/{}/{tier}.txt", t.id)).ok())
+        .filter_map(|text| Strategy::parse(&text).ok())
+        .collect()
+}
+
+/// Until nothing changes: regenerate any table's tier that another table's
+/// list at the same tier, or its own lower tier, plays better (those lists
+/// fit the tier, so seeding from them can only help).
+fn repair_all(dir: &str, tables: &[PayTable]) -> Result<(), String> {
+    let read = |id: &str, tier: &str| -> Option<Strategy> {
+        Strategy::parse(&std::fs::read_to_string(format!("{dir}/{id}/{tier}.txt")).ok()?).ok()
+    };
+    for round in 1..=6 {
+        let mut fixed = 0;
+        for game in builtin_games() {
+            let an = Analyzer::new(game);
+            for table in tables.iter().filter(|t| t.game == an.game.def.id) {
+                let w = Wager::bet(an.game.def.max_bet);
+                let pays = an.game.pays(table, w)?;
+                for (k, tier) in strategy::TIERS.iter().enumerate() {
+                    let Some(own) = read(&table.id, tier.name) else { continue };
+                    let own_loss = strategy::evaluate(&an, &pays, w.bet, &own).loss_credits();
+                    let mut rivals = sibling_lists(dir, tables, table, tier.name);
+                    if k > 0 {
+                        rivals.extend(read(&table.id, strategy::TIERS[k - 1].name));
+                    }
+                    let beats = rivals.iter().any(|r| {
+                        strategy::evaluate(&an, &pays, w.bet, r).loss_credits() < own_loss - 1e-9
+                    });
+                    if !beats {
+                        continue;
+                    }
+                    let t = Instant::now();
+                    let seeds: Vec<&Strategy> = rivals.iter().chain([&own]).collect();
+                    let g = strategy::generate(&an, &pays, tier, &seeds);
+                    let (text, rep) = check_and_render(&an, table, w, tier, &pays, &g)?;
+                    if rep.loss_credits() > own_loss - 1e-12 {
+                        return Err(format!("{} {}: repair did not improve", table.id, tier.name));
+                    }
+                    let path = format!("{dir}/{}/{}.txt", table.id, tier.name);
+                    std::fs::write(&path, &text).map_err(|e| format!("{path}: {e}"))?;
+                    println!(
+                        "repair {round}: {:<30} {:<13} loss {:.6} -> {:.6} ({:.1} s)",
+                        table.id,
+                        tier.name,
+                        own_loss,
+                        rep.loss_credits(),
+                        t.elapsed().as_secs_f64()
+                    );
+                    fixed += 1;
+                }
+            }
+        }
+        if fixed == 0 {
+            println!("repair: every list is at least as good as its siblings' and its lower tier's");
+            return Ok(());
+        }
+    }
+    Err("repair did not settle in 6 rounds".into())
 }
 
 fn check_and_render(
@@ -476,7 +547,8 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
                     let w = Wager::bet(an.game.def.max_bet);
                     let tdir = format!("{dir}/{}", table.id);
                     std::fs::create_dir_all(&tdir).map_err(|e| format!("{tdir}: {e}"))?;
-                    for (tier, text, rep, secs) in generate_for(&an, table, w, &strategy::TIERS)? {
+                    let siblings = |t: &strategy::Tier| sibling_lists(&dir, &tables, table, t.name);
+                    for (tier, text, rep, secs) in generate_for(&an, table, w, &strategy::TIERS, &siblings)? {
                         let path = format!("{tdir}/{}.txt", tier.name);
                         std::fs::write(&path, &text).map_err(|e| format!("{path}: {e}"))?;
                         println!(
@@ -491,6 +563,7 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
                     }
                 }
             }
+            repair_all(&dir, &tables)?;
             Ok(true)
         }
         "generate" => {
@@ -508,7 +581,7 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
                 .copied()
                 .chain([tier])
                 .collect();
-            let (_, text, _, secs) = generate_for(&an, &table, w, &upto)?.pop().unwrap();
+            let (_, text, _, secs) = generate_for(&an, &table, w, &upto, &|_| vec![])?.pop().unwrap();
             match &o.out {
                 Some(f) => {
                     std::fs::write(f, &text).map_err(|e| format!("{f}: {e}"))?;

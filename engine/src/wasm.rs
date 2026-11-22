@@ -194,7 +194,7 @@ impl Engine {
         } else {
             Some(Strategy::parse(seed).map_err(js)?)
         };
-        let g = strategy::generate(&self.analyzer, &pays, &tier, seed.as_ref());
+        let g = strategy::generate(&self.analyzer, &pays, &tier, &seed.iter().collect::<Vec<_>>());
         let r = strategy::evaluate(&self.analyzer, &pays, bet, &g.strategy);
         if !r.is_complete() {
             return Err(js("generated strategy is incomplete".into()));

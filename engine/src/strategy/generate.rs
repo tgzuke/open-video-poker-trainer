@@ -1018,11 +1018,32 @@ pub struct Generated {
     pub entries: usize,
 }
 
+/// Can a rule appear in a strategy of this tier (its qualifiers)?
+pub fn tier_allows(tier: &Tier, r: &Rule) -> bool {
+    let ok = |c: Option<Cmp>, allowed: &[Cmp]| c.is_none_or(|c| allowed.contains(&c));
+    match tier.qualifiers {
+        Qualifiers::None => !r.has_qualifier(),
+        Qualifiers::FlushOnly => r.sp.is_none() && ok(r.fp, &[Cmp::Eq(0), Cmp::Ge(1)]),
+        Qualifiers::All => {
+            let all = [Cmp::Eq(0), Cmp::Ge(1), Cmp::Ge(2)];
+            ok(r.fp, &all) && ok(r.sp, &all)
+        }
+    }
+}
+
 /// Generates the lowest-loss strategy it can find within the tier's cap.
-/// `seed` (typically the tier below) is used as an extra starting point, so
-/// a higher tier never ends up worse than the seed.
-pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seed: Option<&Strategy>) -> Generated {
-    let rules = candidate_rules(an, pays, tier);
+/// Each of `seeds` (typically the tier below, and the same tier's lists for
+/// other pay tables of the game) is an extra starting point: its rules join
+/// the candidate library (if the tier allows them) and the search starts
+/// from it, so the result is never worse than a seed that fits the cap.
+pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seeds: &[&Strategy]) -> Generated {
+    let mut rules = candidate_rules(an, pays, tier);
+    let mut known: HashSet<Rule> = rules.iter().copied().collect();
+    for r in seeds.iter().flat_map(|s| s.rules.iter()) {
+        if r.pattern != Pattern::Nothing && tier_allows(tier, r) && known.insert(*r) {
+            rules.push(*r);
+        }
+    }
     let table = MatchTable::build(an, pays, rules);
     let cap = tier.max_lines.saturating_sub(1);
     let fam = families(&table);
@@ -1042,7 +1063,7 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seed: Option<&Strategy
     enum Job {
         Forward(PatStart, bool),
         Backward(PatStart, bool),
-        Seeded(bool),
+        Seeded(usize, bool),
     }
     let mut jobs = vec![];
     for tie_top in [false, true] {
@@ -1050,8 +1071,8 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seed: Option<&Strategy
             jobs.push(Job::Forward(how, tie_top));
             jobs.push(Job::Backward(how, tie_top));
         }
-        if seed.is_some() {
-            jobs.push(Job::Seeded(tie_top));
+        for i in 0..seeds.len() {
+            jobs.push(Job::Seeded(i, tie_top));
         }
     }
     let run = |job: Job| -> Option<Search> {
@@ -1059,7 +1080,7 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seed: Option<&Strategy
         let r = match job {
             Job::Forward(h, tt) => Some(search_forward(&table, cap, h, &fam, tt)),
             Job::Backward(h, tt) => Some(search_backward(&table, cap, h, &fam, tt)),
-            Job::Seeded(tt) => search_seeded(&table, cap, seed.unwrap(), &fam, tt),
+            Job::Seeded(i, tt) => search_seeded(&table, cap, seeds[i], &fam, tt),
         };
         if let (Some(t), Some(r)) = (t, &r) {
             eprintln!(
@@ -1101,7 +1122,8 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seed: Option<&Strategy
 pub fn generate_tiers(an: &Analyzer, pays: &[i64], tiers: &[Tier]) -> Vec<Generated> {
     let mut out: Vec<Generated> = Vec::new();
     for t in tiers {
-        let g = generate(an, pays, t, out.last().map(|g| &g.strategy));
+        let seeds: Vec<&Strategy> = out.last().map(|g| &g.strategy).into_iter().collect();
+        let g = generate(an, pays, t, &seeds);
         out.push(g);
     }
     out

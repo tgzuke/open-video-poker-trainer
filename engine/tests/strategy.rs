@@ -351,8 +351,8 @@ fn tunable_line_cap() {
     let an = Analyzer::new(g);
     let t15 = strategy::tier("beginner").unwrap();
     let t20 = t15.with_max_lines(20).unwrap();
-    let a = strategy::generate(&an, &pays, &t15, None);
-    let b = strategy::generate(&an, &pays, &t20, Some(&a.strategy));
+    let a = strategy::generate(&an, &pays, &t15, &[]);
+    let b = strategy::generate(&an, &pays, &t20, &[&a.strategy]);
     assert!(b.strategy.rules.len() <= 20);
     check_tier_qualifiers("beginner", &b.strategy.rules);
     assert!(b.loss <= a.loss + 1e-12);
@@ -379,4 +379,73 @@ fn natural_order_keeps_play() {
         strategy::evaluate(&an, &pays, 5, &o).holds,
         strategy::evaluate(&an, &pays, 5, &s).holds
     );
+}
+
+/// No shipped list is beaten on its own table by another table's list at
+/// the same tier (those fit the same cap and qualifiers, so the generator
+/// seeds from them; SPEC §4.3 asks for the smallest loss within the cap).
+fn check_siblings(gid: &str) {
+    let g = builtin_game(gid).unwrap();
+    let an = Analyzer::new(g.clone());
+    let tables: Vec<_> = builtin_paytables().into_iter().filter(|t| t.game == gid).collect();
+    let read = |id: &str, tier: &str| {
+        let path = format!("{}/../strategies/{id}/{tier}.txt", env!("CARGO_MANIFEST_DIR"));
+        Strategy::parse(&std::fs::read_to_string(path).unwrap()).unwrap()
+    };
+    for t in &tables {
+        let pays = g.pays_for_bet(t, g.def.max_bet).unwrap();
+        for tier in TIERS {
+            let own = strategy::evaluate(&an, &pays, g.def.max_bet, &read(&t.id, tier.name)).loss_credits();
+            for s in tables.iter().filter(|s| s.id != t.id) {
+                let other = strategy::evaluate(&an, &pays, g.def.max_bet, &read(&s.id, tier.name)).loss_credits();
+                assert!(
+                    own <= other + 1e-9,
+                    "{} {}: own list loses {own:.7}, {}'s list {other:.7}",
+                    t.id,
+                    tier.name,
+                    s.id
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn siblings_jacks_or_better() {
+    check_siblings("jacks-or-better");
+}
+#[test]
+fn siblings_bonus_poker() {
+    check_siblings("bonus-poker");
+}
+#[test]
+fn siblings_double_bonus() {
+    check_siblings("double-bonus");
+}
+#[test]
+fn siblings_double_double_bonus() {
+    check_siblings("double-double-bonus");
+}
+
+/// A seed is an upper bound on the result even when its rules are not in
+/// the generator's own candidate library (here: a hand-written list and a
+/// list made for another pay table), and disallowed rules are ignored.
+#[test]
+fn seeds_bound_the_result() {
+    let base = builtin_game("jacks-or-better").unwrap();
+    let g = verify::reduced_games(&base).into_iter().nth(1).unwrap();
+    let an = Analyzer::new(g);
+    let t96 = builtin_paytable("jacks-or-better-9-6").unwrap();
+    let t65 = builtin_paytable("jacks-or-better-6-5").unwrap();
+    let pays = an.game.pays_for_bet(&t65, 5).unwrap();
+    let beginner = strategy::tier("beginner").unwrap();
+    let simple = Strategy::parse(SIMPLE).unwrap();
+    let other = strategy::generate(&an, &an.game.pays_for_bet(&t96, 5).unwrap(), &beginner, &[]).strategy;
+    let qualified = Strategy::parse("4 to a flush fp=0\npair\ndiscard everything").unwrap();
+    let g = strategy::generate(&an, &pays, &beginner, &[&simple, &other, &qualified]);
+    check_tier_qualifiers("beginner", &g.strategy.rules);
+    let loss = |s: &Strategy| strategy::evaluate(&an, &pays, 5, s).loss_credits();
+    assert!((loss(&g.strategy) - g.loss).abs() < 1e-9);
+    assert!(g.loss <= loss(&simple) + 1e-12);
+    assert!(g.loss <= loss(&other) + 1e-12);
 }

@@ -3,8 +3,8 @@
 # paytable: bonus-poker-7-5
 # bet: 5
 # tier: expert (max 60 lines)
-# return: 98.014380%  optimal: 98.014694%
-# loss: 0.000016 credits/hand (0.000314 points of return)
+# return: 98.014449%  optimal: 98.014694%
+# loss: 0.000012 credits/hand (0.000245 points of return)
 # complete: yes
 #
 # per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
@@ -13,10 +13,8 @@ straight flush                          # fires   0.0014%  wrong   0.0000%  loss
 four of a kind                          # fires   0.0240%  wrong   0.0000%  loss 0.000000
 4 to a royal                            # fires   0.0360%  wrong   0.0000%  loss 0.000000
 full house                              # fires   0.1441%  wrong   0.0000%  loss 0.000000
-three of a kind A                       # fires   0.1625%  wrong   0.0000%  loss 0.000000
 flush                                   # fires   0.1905%  wrong   0.0000%  loss 0.000000
-three of a kind 5-K                     # fires   1.4627%  wrong   0.0000%  loss 0.000000
-three of a kind                         # fires   0.4876%  wrong   0.0000%  loss 0.000000
+three of a kind                         # fires   2.1128%  wrong   0.0000%  loss 0.000000
 straight                                # fires   0.3897%  wrong   0.0000%  loss 0.000000
 4 to a straight flush                   # fires   0.1958%  wrong   0.0000%  loss 0.000000
 two pair                                # fires   4.7539%  wrong   0.0000%  loss 0.000000
@@ -50,21 +48,23 @@ JT7 suited sp=0                         # fires   0.0346%  wrong   0.0000%  loss
 J97 suited sp=0                         # fires   0.0365%  wrong   0.0069%  loss 0.000000
 QJ unsuited                             # fires   2.5810%  wrong   0.0009%  loss 0.000000
 3 to a straight flush h=1 sp=0          # fires   0.3565%  wrong   0.0000%  loss 0.000000
-875 suited                              # fires   0.0448%  wrong   0.0018%  loss 0.000000
-865 suited                              # fires   0.0448%  wrong   0.0018%  loss 0.000000
+875 suited sp=0                         # fires   0.0254%  wrong   0.0000%  loss 0.000000
+865 suited sp=0                         # fires   0.0254%  wrong   0.0000%  loss 0.000000
 3 to a straight flush h=1 sp>=1         # fires   0.2216%  wrong   0.0028%  loss 0.000000
 J sp=0                                  # fires   0.1094%  wrong   0.0023%  loss 0.000000
 KJ unsuited sp>=2                       # fires   0.2539%  wrong   0.0000%  loss 0.000000
 JT suited fp=0                          # fires   0.4017%  wrong   0.0249%  loss 0.000005
 3 to a straight flush w=2 sp=0          # fires   0.2849%  wrong   0.0000%  loss 0.000000
-3 to a straight flush w=2 sp>=1         # fires   0.2018%  wrong   0.0411%  loss 0.000005
-2 high cards unsuited sp=0 prefer low   # fires   6.5551%  wrong   0.0000%  loss 0.000000
-2 high cards unsuited sp>=1 prefer low  # fires   5.3195%  wrong   0.0277%  loss 0.000004
+2 high cards unsuited sp=0 prefer low   # fires   6.5634%  wrong   0.0000%  loss 0.000000
+T97 suited                              # fires   0.0175%  wrong   0.0023%  loss 0.000001
+2 high cards unsuited sp>=1 prefer low  # fires   5.3214%  wrong   0.0286%  loss 0.000005
 JT suited                               # fires   0.1385%  wrong   0.0000%  loss 0.000000
+A fp=0                                  # fires   1.3870%  wrong   0.0028%  loss 0.000000
+3 to a straight flush w=2 sp>=1         # fires   0.1833%  wrong   0.0065%  loss 0.000001
 QT suited                               # fires   0.3948%  wrong   0.0000%  loss 0.000000
 1 high card sp=0 prefer low             # fires   1.5135%  wrong   0.0000%  loss 0.000000
 KT suited fp=0                          # fires   0.2216%  wrong   0.0000%  loss 0.000000
-1 high card sp>=1 prefer low            # fires  14.0729%  wrong   0.0000%  loss 0.000000
+1 high card sp>=1 prefer low            # fires  12.7154%  wrong   0.0000%  loss 0.000000
 3 to a straight flush sp=0              # fires   0.1164%  wrong   0.0000%  loss 0.000000
 3 to a straight flush sp>=1             # fires   0.1441%  wrong   0.0000%  loss 0.000000
 discard everything                      # fires   3.2459%  wrong   0.0000%  loss 0.000000

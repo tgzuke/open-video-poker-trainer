@@ -579,28 +579,48 @@ the editor and comparison screen are now Milestone 7).
   once per class, about 25% faster than before.
 - Comparison: ~1.5 s, including loading the second table's game.
 
-### Finding: some shipped strategies aren't the best at their level
-The comparison shows that 10 of the 60 shipped strategies are beaten on their
-own table by another table's list at the same level (same line cap and
-qualifiers). The loss is in credits per hand; "from" is the table whose list
-does better.
+### Regenerated with sibling seeding (owner approved)
+The comparison showed that 10 of the 60 shipped strategies were beaten on
+their own table by another table's list at the same level (for example BP
+7/5 intermediate lost 0.00155 credits/hand where BP 8/5's list lost
+0.00021). The fix:
+- **Generator:** `generate` takes any number of seed lists. Their rules join
+  the candidate library if the tier allows them, and the search also starts
+  from each one, so the result is never worse than a seed that fits.
+- **`ovp strategy generate --all`:** each table and level is seeded from the
+  level below and from every other preset table of the game at that level.
+  Afterwards a check pass regenerates any list that a sibling or its own
+  lower level still beats, until none is. On this run that pass found
+  nothing to fix.
+- **Results:** none of the 60 got worse and 29 improved, more than the 10
+  flagged, because improvements carried from table to table. The table
+  below shows some of them. Other notable gains: DB 9/6 expert, 0.00045 →
+  0.000035 (the M3 weak spot), DB 9/5 expert 0.00021 → 0.000051, and
+  JoB 9/6 and 8/6 expert 0.000013 → 0.000001.
 
-| Table, level | Own loss | Best sibling | From |
-|---|---|---|---|
-| BP 7/5 intermediate | 0.00155 | 0.00021 | BP 8/5 |
-| BP 6/5 intermediate | 0.00164 | 0.00048 | BP 8/5 |
-| DB 10/7 intermediate | 0.00456 | 0.00262 | DB 9/7 |
-| BP 8/5 beginner | 0.01454 | 0.01176 | BP 6/5 |
-| DDB 6/5 intermediate | 0.00232 | 0.00197 | DDB 7/5 |
-| JoB 9/5, 8/5, 7/5, 6/5 intermediate | 0.00022–0.00026 | ~0.00013 | JoB 8/6 |
-| DDB 9/5 expert | 0.000024 | 0.000014 | DDB 8/5 |
+| Table, level | Loss before | Loss after |
+|---|---|---|
+| BP 7/5 intermediate | 0.001552 | 0.000209 |
+| BP 6/5 intermediate | 0.001639 | 0.000484 |
+| BP 8/5 beginner | 0.014543 | 0.011755 |
+| DB 10/7 intermediate | 0.004559 | 0.001711 |
+| DB 9/6 intermediate | 0.002593 | 0.001532 |
+| DB 9/5 intermediate | 0.002142 | 0.000783 |
+| JoB 9/5, 8/5, 7/5, 6/5 intermediate | 0.00022–0.00026 | 0.000041–0.000058 |
+| DDB 9/5 / 8/5 intermediate | 0.00170 / 0.00181 | 0.00126 / 0.00135 |
 
-The generator's local search gets stuck. An easy fix is to also start the
-search from each sibling table's list and keep the best result. It's never
-worse, and costs more generation time (`--all` would take ~1 hour).
+- **Generation time:** a full `--all` run now takes about 41 minutes (was
+  ~20). The browser generator is unchanged: a single seed, same speed.
+- **New tests:** for every game, no shipped list is beaten on its own table
+  by a sibling's list at the same level (these tests failed on the old
+  files). A seed bounds the result even when its rules aren't in the
+  candidate library, and rules the tier doesn't allow are ignored.
+  Rust: 62 tests in total.
 
 ### Open questions
-- Regenerate with sibling seeding (above)? It changes 10+ shipped files.
+- In the browser editor, "Generate" for a custom table could also seed from
+  the game's preset lists at that level. That would give better lists, but
+  roughly doubles the time in the browser. It is not done yet.
 - Rule changes are matched by exact text. A reworded rule (e.g. a different
   qualifier) shows as a removal plus an addition whose effects mostly
   cancel. The "hands played differently" table is the clearer view of what

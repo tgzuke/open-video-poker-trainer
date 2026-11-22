@@ -3,8 +3,8 @@
 # paytable: jacks-or-better-8-6
 # bet: 5
 # tier: intermediate (max 30 lines)
-# return: 98.390940%  optimal: 98.392685%
-# loss: 0.000087 credits/hand (0.001746 points of return)
+# return: 98.391409%  optimal: 98.392685%
+# loss: 0.000064 credits/hand (0.001276 points of return)
 # complete: yes
 #
 # per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
@@ -18,22 +18,22 @@ two pair                                     # fires   4.7539%  wrong   0.0000% 
 pair J-A                                     # fires  12.9846%  wrong   0.0000%  loss 0.000000
 3 to a royal                                 # fires   1.0911%  wrong   0.0332%  loss 0.000009
 4 to a flush                                 # fires   3.2902%  wrong   0.0000%  loss 0.000000
-4 to a straight w=2 h=3                      # fires   0.2295%  wrong   0.0000%  loss 0.000000
-pair                                         # fires  28.2090%  wrong   0.0000%  loss 0.000000
-4 to a straight w=2                          # fires   2.0519%  wrong   0.0000%  loss 0.000000
+pair                                         # fires  28.2187%  wrong   0.0097%  loss 0.000029
+4 to a straight w=2                          # fires   2.2717%  wrong   0.0000%  loss 0.000000
 3 to a straight flush h=2 fp=0               # fires   0.2299%  wrong   0.0000%  loss 0.000000
 3 to a straight flush w=3 fp=0               # fires   0.2715%  wrong   0.0000%  loss 0.000000
 4 to a straight h=4                          # fires   0.2456%  wrong   0.0249%  loss 0.000004
-2 high cards suited fp=0 prefer low          # fires   3.7243%  wrong   0.0028%  loss 0.000007
-2 high cards suited prefer low               # fires   2.6387%  wrong   0.0000%  loss 0.000000
+2 high cards suited prefer low               # fires   6.3630%  wrong   0.0028%  loss 0.000007
 3 to a straight flush w=2 fp=0               # fires   0.7415%  wrong   0.0000%  loss 0.000000
 4 to a straight h=3                          # fires   0.4386%  wrong   0.0037%  loss 0.000001
 3 to a straight flush h=1 fp=0               # fires   0.6866%  wrong   0.0000%  loss 0.000000
 3 to a straight w=2 h=3                      # fires   0.3094%  wrong   0.0000%  loss 0.000000
 QJ unsuited                                  # fires   2.5335%  wrong   0.0000%  loss 0.000000
 JT suited                                    # fires   0.6584%  wrong   0.0485%  loss 0.000012
-2 high cards prefer low                      # fires  12.0057%  wrong   0.1136%  loss 0.000052
-QT suited                                    # fires   0.3948%  wrong   0.0000%  loss 0.000000
+KQ unsuited                                  # fires   2.7556%  wrong   0.0000%  loss 0.000000
+QT suited fp=0                               # fires   0.3352%  wrong   0.0000%  loss 0.000000
+2 high cards prefer low                      # fires   9.1366%  wrong   0.0000%  loss 0.000000
+QT suited                                    # fires   0.1731%  wrong   0.0000%  loss 0.000000
 KT suited                                    # fires   0.4225%  wrong   0.0554%  loss 0.000003
 1 high card prefer low                       # fires  15.4880%  wrong   0.0000%  loss 0.000000
 3 to a straight flush fp=0                   # fires   0.2604%  wrong   0.0000%  loss 0.000000

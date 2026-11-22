@@ -3,8 +3,8 @@
 # paytable: double-double-bonus-8-5
 # bet: 5
 # tier: intermediate (max 30 lines)
-# return: 96.750014%  optimal: 96.786139%
-# loss: 0.001806 credits/hand (0.036125 points of return)
+# return: 96.759232%  optimal: 96.786139%
+# loss: 0.001345 credits/hand (0.026907 points of return)
 # complete: yes
 #
 # per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
@@ -19,22 +19,22 @@ flush, straight                                          # fires   0.5802%  wron
 pair A                                                   # fires   3.9782%  wrong   0.0000%  loss 0.000000
 two pair                                                 # fires   4.0225%  wrong   0.0000%  loss 0.000000
 pair J-A                                                 # fires   9.7377%  wrong   0.0000%  loss 0.000000
-3 to a royal fp>=1                                       # fires   0.3666%  wrong   0.0000%  loss 0.000000
-3 to a royal                                             # fires   0.7244%  wrong   0.0000%  loss 0.000000
+3 to a royal                                             # fires   1.0911%  wrong   0.0000%  loss 0.000000
 4 to a flush                                             # fires   3.2902%  wrong   0.0000%  loss 0.000000
 pair                                                     # fires  28.2187%  wrong   0.0794%  loss 0.000233
 4 to a straight w=2                                      # fires   2.2717%  wrong   0.0000%  loss 0.000000
-4 to a straight h=4                                      # fires   0.2512%  wrong   0.0014%  loss 0.000004
+4 to a straight w=1 h=4                                  # fires   0.2512%  wrong   0.0014%  loss 0.000004
 3 to a straight flush h=2 fp=0                           # fires   0.2244%  wrong   0.0000%  loss 0.000000
 3 to a straight flush w=3 fp=0                           # fires   0.2715%  wrong   0.0023%  loss 0.000001
 4 to a straight w=1 h=3                                  # fires   0.9350%  wrong   0.2045%  loss 0.000096
 2 high cards suited prefer low                           # fires   5.8703%  wrong   0.0009%  loss 0.000001
 3 to a straight w=2 h=3                                  # fires   0.3103%  wrong   0.0000%  loss 0.000000
-3 to a straight flush w=2 fp=0                           # fires   0.7378%  wrong   0.0646%  loss 0.000033
-4 to a straight w=1 h=2                                  # fires   0.6894%  wrong   0.0000%  loss 0.000000
-3 to a straight flush h=1 fp=0                           # fires   0.6390%  wrong   0.0074%  loss 0.000001
-A                                                        # fires  12.2177%  wrong   0.4774%  loss 0.000190
+3 to a straight flush h=1 fp=0                           # fires   0.8246%  wrong   0.0540%  loss 0.000021
+4 to a straight w=1 h=2                                  # fires   0.6464%  wrong   0.0018%  loss 0.000000
+A                                                        # fires  12.3437%  wrong   0.5407%  loss 0.000206
+3 to a straight flush w=2 fp=0                           # fires   0.4691%  wrong   0.0000%  loss 0.000000
 2 high cards prefer low                                  # fires   6.1446%  wrong   0.0623%  loss 0.000011
 1 high card                                              # fires  12.4979%  wrong   0.9562%  loss 0.000773
-4 to a straight w=1 h=0                                  # fires   1.3773%  wrong   0.1634%  loss 0.000196
-discard everything                                       # fires   2.1290%  wrong   0.0970%  loss 0.000268
+3 to a straight flush fp=0                               # fires   0.2604%  wrong   0.0000%  loss 0.000000
+4 to a straight w=1 h=0                                  # fires   1.2139%  wrong   0.0000%  loss 0.000000
+discard everything                                       # fires   2.0320%  wrong   0.0000%  loss 0.000000
