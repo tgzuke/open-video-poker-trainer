@@ -13,4 +13,5 @@ export const DEFAULT_KEYMAP: Record<ButtonId, string[]> = {
   dealDraw: ["Comma"],
   betMax: ["KeyM"], // also deals
   betOne: ["KeyN"], // provisional (SPEC §9)
+  strategy: ["KeyS"], // strategy view (Practice and Lesson)
 };

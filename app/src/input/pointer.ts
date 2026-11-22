@@ -19,10 +19,7 @@ export class PointerSource implements InputSource {
   start(press: (b: ButtonId) => void) {
     this.handler = (e: PointerEvent) => {
       if (!this.enabled()) return;
-      const r = this.canvas.getBoundingClientRect();
-      const dpr = this.canvas.width / r.width;
-      const x = ((e.clientX - r.left) * dpr - this.pix.ox) / this.pix.k;
-      const y = ((e.clientY - r.top) * dpr - this.pix.oy) / this.pix.k;
+      const { x, y } = this.pix.toLogical(this.canvas, e.clientX, e.clientY);
       const C = LAYOUT.cards;
       if (y < LAYOUT.held.y || y > C.y + C.h) return;
       for (let i = 0; i < 5; i++) {

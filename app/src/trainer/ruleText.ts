@@ -10,6 +10,11 @@
 /** Pat hands, as the engine names them on a combined line. */
 const PAT_WORDS = ["royal flush", "straight flush", "four of a kind", "full house", "flush", "straight"];
 
+const RANK_PLURAL: Record<string, string> = {
+  A: "aces", K: "kings", Q: "queens", J: "jacks", T: "10s",
+  9: "9s", 8: "8s", 7: "7s", 6: "6s", 5: "5s", 4: "4s", 3: "3s", 2: "2s",
+};
+
 const rankName = (r: string) => (r === "T" ? "10" : r);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -54,8 +59,15 @@ export function ruleDisplay(text: string): string {
   if (low) quals.push("keep the lowest");
 
   const made = /^(pair|three of a kind|four of a kind)(?: ([^ ]+))?(?: kicker ([^ ]+))?$/.exec(pattern);
-  if (made && (made[2] || made[3]))
-    base = [made[1], made[2] && rankSet(made[2], made[1] === "pair"), made[3] && `kicker ${rankSet(made[3])}`].filter(Boolean).join(", ");
+  if (made && (made[2] || made[3])) {
+    const [, kind, ranks, kicker] = made;
+    // One rank reads as a player says it: "pair of aces", "four 5s".
+    const single = ranks && /^[2-9TJQKA]$/.test(ranks) ? RANK_PLURAL[ranks] : null;
+    const head = single
+      ? `${kind === "pair" ? "pair of" : kind === "three of a kind" ? "three" : "four"} ${single}`
+      : [kind, ranks && rankSet(ranks, kind === "pair")].filter(Boolean).join(", ");
+    base = kicker ? `${head}, kicker ${rankSet(kicker)}` : head;
+  }
 
   // Lists of pat hands: all six read "any pat hand"; shorter lists say quads.
   const pats = pattern.split(", ");

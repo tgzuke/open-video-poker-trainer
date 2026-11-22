@@ -397,6 +397,20 @@ frames observed). Game bundle 32 kB JS (11.5 kB gzip) + 271 kB wasm.
   Draw. If the player draws first, Lesson waits for it (queued);
   Practice and Free Play never wait.
 
+- **Strategy tag and view** (owner request after review):
+  - In Practice and Lesson, a framed tag at bottom left shows the level,
+    e.g. "BEGINNER STRATEGY (S)".
+  - Clicking it, or pressing S, opens the strategy view, drawn on the
+    cabinet screen in the game's font and colors.
+  - The view has tabs to switch level (click, or ←/→), the strategy's
+    return and loss, and the numbered rules in plain words.
+  - Scroll with the wheel, ↑/↓, PgUp/PgDn or Home/End. Close with S, Esc
+    or CLOSE.
+  - Play keys are ignored while the view is open.
+  - "Strategy view" is a new button in the input layer, remappable in the
+    menu. A saved keymap from before it existed keeps its remaps and gets
+    S for the new button.
+
 ### Verification
 - Rust (52 tests pass):
   - The distance cases above, written by hand.
@@ -404,7 +418,8 @@ frames observed). Game bundle 32 kB JS (11.5 kB gzip) + 271 kB wasm.
   - Invariants on 3,000 random hands.
   - On 300 hands for each of the 60 shipped strategies, the deal check
     agrees with play.
-- Vitest (45 tests pass):
+- Vitest (52 tests pass; the list below predates the strategy view, whose
+  tests cover rows, scrolling, tabs, clicks and keymap migration):
   - Green, yellow and red grading.
   - Pure EV grace and its bet scaling.
   - Fallback when there's no strategy.
@@ -440,4 +455,7 @@ frames observed). Game bundle 32 kB JS (11.5 kB gzip) + 271 kB wasm.
 - Rule names are shown in plain words (e.g. "4 to an outside straight";
   table in `docs/strategy-format.md`). Files keep the exact notation.
 - Session stats last until you reset them; they are not reset by time.
+- Strategy tag position and wording, the view's layout (`LAYOUT.strategyTag`,
+  `LAYOUT.strategyView`), and the S key. The view opens only in Practice and
+  Lesson, not Free Play.
 

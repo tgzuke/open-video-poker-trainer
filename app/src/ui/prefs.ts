@@ -2,7 +2,7 @@
 // guarded: private mode or blocked storage just means defaults.
 import { DEFAULT_KEYMAP } from "../config/keymap";
 import { DEFAULT_SOUND, DEFAULT_SPEED, SPEED_LEVELS, STARTING_CREDITS } from "../config/feel";
-import { BUTTONS, type ButtonId } from "../input/actions";
+import { BUTTONS } from "../input/actions";
 import type { Keymap } from "../input/keyboard";
 import { DEFAULT_CHECKING, DEFAULT_GRACE, DEFAULT_MODE, DEFAULT_TIER, type Checking, type Mode } from "../config/trainer";
 import { TIERS, type Tier } from "../engine/protocol";
@@ -50,10 +50,17 @@ export interface Store {
   setItem(k: string, v: string): void;
 }
 
-function validKeymap(x: unknown): x is Keymap {
-  if (typeof x !== "object" || x === null) return false;
+/** Saved keymap merged over the defaults: buttons added since it was saved
+ *  get their default keys; malformed entries are ignored. */
+function mergeKeymap(x: unknown): Keymap {
+  const out: Keymap = { ...DEFAULT_KEYMAP };
+  if (typeof x !== "object" || x === null) return out;
   const m = x as Record<string, unknown>;
-  return BUTTONS.every((b) => Array.isArray(m[b]) && (m[b] as unknown[]).every((c) => typeof c === "string"));
+  for (const b of BUTTONS) {
+    const v = m[b];
+    if (Array.isArray(v) && v.every((c) => typeof c === "string")) out[b] = v as string[];
+  }
+  return out;
 }
 
 export function loadPrefs(store: Store | null): Prefs {
@@ -72,7 +79,7 @@ export function loadPrefs(store: Store | null): Prefs {
   if (SPEED_LEVELS.includes(r.speed as never)) p.speed = r.speed as number;
   if (typeof r.muted === "boolean") p.muted = r.muted;
   if (typeof r.volume === "number" && r.volume >= 0 && r.volume <= 1) p.volume = r.volume;
-  if (validKeymap(r.keymap)) p.keymap = r.keymap as Record<ButtonId, string[]>;
+  p.keymap = mergeKeymap(r.keymap);
   if (typeof r.labels === "object" && r.labels !== null)
     p.labels = Object.fromEntries(Object.entries(r.labels).filter(([, v]) => typeof v === "string")) as Record<string, string>;
   if (Number.isInteger(r.credits) && (r.credits as number) >= 0) p.credits = r.credits as number;

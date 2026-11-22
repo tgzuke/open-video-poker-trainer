@@ -62,7 +62,7 @@ hover. Display only: the parser does not accept the plain words.
 | `fp>=2` / `sp>=2` | 2+ flush penalty / 2+ straight penalty |
 | `prefer low` | keep the lowest |
 | `pair J-A` / `pair 2-T` | pair, J or better / pair, 10 or lower |
-| `four of a kind A kicker 2-4` | four of a kind, A, kicker 2-4 |
+| `pair A`, `three of a kind A`, `four of a kind A kicker 2-4` | pair of aces, three aces, four aces, kicker 2-4 |
 | all six pat hands on one line | any pat hand (shorter lists say "quads") |
 | `T` in exact ranks (`KQJT suited`) | 10 (KQJ10 suited) |
 

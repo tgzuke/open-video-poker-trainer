@@ -19,6 +19,13 @@ export class Pix {
     this.oy = Math.round((devH - SCREEN.h * this.k) / 2);
   }
 
+  /** Page (client) coordinates → logical screen coordinates. */
+  toLogical(canvas: HTMLCanvasElement, clientX: number, clientY: number): { x: number; y: number } {
+    const r = canvas.getBoundingClientRect();
+    const dpr = canvas.width / r.width;
+    return { x: ((clientX - r.left) * dpr - this.ox) / this.k, y: ((clientY - r.top) * dpr - this.oy) / this.k };
+  }
+
   private dx(x: number) {
     return Math.round(this.ox + x * this.k);
   }

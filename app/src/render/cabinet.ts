@@ -5,7 +5,10 @@ import type { Feedback, LessonPrompt } from "../trainer/trainer";
 import { ruleDisplay } from "../trainer/ruleText";
 import type { GameState } from "../game/model";
 import type { Anim } from "./anim";
-import { RANK_TEXT, SUIT_IS_RED, textWidth } from "./font";
+import { RANK_TEXT, SUIT_IS_RED, textWidth, wrap } from "./font";
+import { drawStrategyTag } from "./strategyView";
+
+export { wrap };
 import { Pix } from "./pix";
 
 export interface CabinetView {
@@ -23,6 +26,8 @@ export interface CabinetView {
 
 export interface TrainerView {
   mode: Mode;
+  /** Strategy tag text (Practice and Lesson), or null to hide it. */
+  tag: string | null;
   feedback: Feedback | null;
   lesson: LessonPrompt | null;
 }
@@ -34,26 +39,6 @@ export function cardX(i: number, mode: Mode = "free"): number {
   const total = 5 * C.w + 4 * C.gap;
   const left = mode === "practice" ? LAYOUT.practiceCardsX : (SCREEN.w - total) / 2;
   return left + i * (C.w + C.gap);
-}
-
-/** Splits text into lines of at most `max` characters, at spaces. */
-export function wrap(text: string, max: number): string[] {
-  const out: string[] = [];
-  let line = "";
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    for (let w = word; w.length; ) {
-      const piece = w.slice(0, max);
-      w = w.slice(max);
-      if (!line) line = piece;
-      else if (line.length + 1 + piece.length <= max) line += " " + piece;
-      else {
-        out.push(line);
-        line = piece;
-      }
-    }
-  }
-  if (line) out.push(line);
-  return out;
 }
 
 /** Feedback box text line pitch (7 px glyphs + 1 px gap). */
@@ -191,6 +176,7 @@ export function drawCabinet(p: Pix, v: CabinetView, anim: Anim, now: number) {
     }
   }
   if (mode === "practice") drawFeedback(p, v.trainer.feedback);
+  if (v.trainer.tag) drawStrategyTag(p, v.trainer.tag);
 
   // Meters.
   const M = LAYOUT.meters;

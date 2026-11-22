@@ -1,9 +1,16 @@
 // Input abstraction (SPEC §6.4): every input source (keyboard now, GPIO
 // buttons later) reports *buttons*; the game only ever sees GameActions.
 
-export type ButtonId = "hold1" | "hold2" | "hold3" | "hold4" | "hold5" | "dealDraw" | "betMax" | "betOne";
+/** Buttons that play the game. */
+export type GameButton = "hold1" | "hold2" | "hold3" | "hold4" | "hold5" | "dealDraw" | "betMax" | "betOne";
+/** All buttons: game buttons plus screen buttons (strategy view). */
+export type ButtonId = GameButton | "strategy";
 
-export const BUTTONS: ButtonId[] = ["hold1", "hold2", "hold3", "hold4", "hold5", "dealDraw", "betMax", "betOne"];
+export const BUTTONS: ButtonId[] = ["hold1", "hold2", "hold3", "hold4", "hold5", "dealDraw", "betMax", "betOne", "strategy"];
+
+export function isGameButton(b: ButtonId): b is GameButton {
+  return b !== "strategy";
+}
 
 export const BUTTON_LABELS: Record<ButtonId, string> = {
   hold1: "Hold card 1",
@@ -14,11 +21,12 @@ export const BUTTON_LABELS: Record<ButtonId, string> = {
   dealDraw: "Deal / Draw",
   betMax: "Bet Max (deals)",
   betOne: "Bet One",
+  strategy: "Strategy view",
 };
 
 export type GameAction = { type: "hold"; index: number } | { type: "dealDraw" } | { type: "betMax" } | { type: "betOne" };
 
-export function buttonToAction(b: ButtonId): GameAction {
+export function buttonToAction(b: GameButton): GameAction {
   switch (b) {
     case "hold1":
     case "hold2":

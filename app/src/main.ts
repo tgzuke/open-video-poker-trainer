@@ -15,6 +15,11 @@ import { hasPresetStrategy, loadPresetStrategy, strategyHeader } from "./strateg
 import { Trainer } from "./trainer/trainer";
 import { defaultKv, Stats } from "./trainer/store";
 import { StatsDialog, strategyRuleOrder } from "./ui/statsView";
+import { StrategyScreen } from "./ui/strategyScreen";
+import { inRect, strategyTagRect } from "./render/strategyView";
+import { isGameButton, type ButtonId } from "./input/actions";
+import { keyLabel } from "./ui/settings";
+import type { Tier } from "./engine/protocol";
 
 const store = safeLocalStorage();
 const prefs = loadPrefs(store);
@@ -48,7 +53,7 @@ async function main() {
 
   // Engine worker: per-hand trainer checks (and the strategy they use).
   const engine = new EngineClient();
-  let strategy = { key: null as string | null, text: "", info: "Loading strategy…" };
+  let strategy = { key: null as string | null, text: "", info: "Loading strategy…", loaded: false };
   let strategyGen = 0;
   async function loadTrainer() {
     const gen = ++strategyGen;
@@ -63,11 +68,12 @@ async function main() {
     if (text) {
       const ret = strategyHeader(text, "return")?.split(" ")[0] ?? "?";
       const loss = strategyHeader(text, "loss")?.split(" ")[0] ?? "?";
-      strategy = { key: `${t.id}/${prefs.tier}`, text, info: `${t.name} ${prefs.tier} strategy: return ${ret}, ${loss} credits/hand below optimal.` };
+      strategy = { loaded: true, key: `${t.id}/${prefs.tier}`, text, info: `${t.name} ${prefs.tier} strategy: return ${ret}, ${loss} credits/hand below optimal.` };
     } else {
-      strategy = { key: null, text: "", info: "No preset strategy for this pay table yet: the trainer checks by Pure EV and rule stats are off." };
+      strategy = { loaded: true, key: null, text: "", info: "No preset strategy for this pay table yet: the trainer checks by Pure EV and rule stats are off." };
     }
     menu.refresh();
+    app.request(); // the strategy tag shows the loaded level
   }
 
   const stats = new Stats(defaultKv());
@@ -124,6 +130,7 @@ async function main() {
       if (changed.some((k) => k === "paytableId" || k === "progressive" || k === "labels"))
         app.setTable(loadTable(prefs.paytableId), prefs.progressive);
       if (changed.some((k) => k === "paytableId" || k === "tier")) void loadTrainer();
+      if (changed.includes("paytableId")) strategyScreen.reset();
       if (changed.includes("mode")) trainer.modeChanged();
       if (changed.some((k) => k === "mode" || k === "checking" || k === "grace")) app.request();
       if (changed.includes("speed")) app.setSpeed(prefs.speed);
@@ -146,12 +153,72 @@ async function main() {
     },
   });
 
+  // Strategy view and its on-screen tag (Practice and Lesson only).
+  const trainerMode = () => prefs.mode === "practice" || prefs.mode === "lesson";
+  const tierName = (t: Tier) => t.toUpperCase();
+  const strategyKey = () => keyLabel(prefs.keymap.strategy[0] ?? "").toUpperCase();
+  const tagLabel = () => {
+    if (!trainerMode() || strategyScreen.open) return null;
+    const k = strategyKey();
+    return `${strategy.loaded && !strategy.key ? "NO STRATEGY" : `${tierName(prefs.tier)} STRATEGY`}${k ? ` (${k})` : ""}`;
+  };
+  app.tag = tagLabel;
+  const strategyScreen = new StrategyScreen({
+    loadText: (tier) => {
+      const id = prefs.paytableId;
+      return hasPresetStrategy(id, tier) ? loadPresetStrategy(id, tier) : Promise.resolve("");
+    },
+    tier: () => prefs.tier,
+    setTier(t) {
+      prefs.tier = t;
+      void loadTrainer();
+      save();
+    },
+    title: () => `STRATEGY - ${app.label()}`,
+    summary(text) {
+      const ret = strategyHeader(text, "return")?.split(" ")[0] ?? "?";
+      const loss = strategyHeader(text, "loss")?.split(" ")[0] ?? "?";
+      return `RETURN ${ret}, ${loss} CREDITS/HAND BELOW OPTIMAL`;
+    },
+    closeKey: strategyKey,
+    redraw: () => app.request(),
+  });
+  app.overlay = strategyScreen.draw;
+
+  const dialogsOpen = () => menu.open || statsDialog.open;
+  /** Every button press (keyboard, pointer) comes through here. */
+  const press = (b: ButtonId) => {
+    if (b === "strategy") {
+      if (strategyScreen.open || trainerMode()) strategyScreen.toggle();
+      return;
+    }
+    if (strategyScreen.open || !isGameButton(b)) return; // the view is up: no play
+    app.press(b);
+  };
+
   const keyboard = new KeyboardSource(window, prefs.keymap);
-  keyboard.enabled = () => !menu.open && !statsDialog.open;
-  keyboard.start((b) => app.press(b));
+  keyboard.enabled = () => !dialogsOpen();
+  keyboard.start(press);
   const pointer = new PointerSource(canvas, pix, () => prefs.mode);
-  pointer.enabled = () => !menu.open && !statsDialog.open;
-  pointer.start((b) => app.press(b));
+  pointer.enabled = () => !dialogsOpen() && !strategyScreen.open;
+  pointer.start(press);
+  // Clicks on the strategy tag and inside the strategy view.
+  canvas.addEventListener("pointerdown", (e) => {
+    if (dialogsOpen()) return;
+    const { x, y } = pix.toLogical(canvas, e.clientX, e.clientY);
+    if (strategyScreen.click(x, y)) return;
+    const tag = tagLabel();
+    if (tag && inRect(strategyTagRect(tag), x, y)) press("strategy");
+  });
+  canvas.addEventListener(
+    "wheel",
+    (e) => {
+      if (!strategyScreen.open) return;
+      e.preventDefault();
+      strategyScreen.scrollBy(Math.sign(e.deltaY) * 3);
+    },
+    { passive: false },
+  );
 
   document.getElementById("menu-btn")!.onclick = () => menu.show();
   document.getElementById("stats-btn")!.onclick = () => statsDialog.show();

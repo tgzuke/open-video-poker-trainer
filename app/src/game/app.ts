@@ -1,6 +1,6 @@
 // The playable game: input → model → animation/sound → renderer.
 import { AUTO_REFILL, countUpMs, SPEED_TABLE, STARTING_CREDITS } from "../config/feel";
-import { buttonToAction, type ButtonId } from "../input/actions";
+import { buttonToAction, type GameButton } from "../input/actions";
 import { Anim } from "../render/anim";
 import { drawCabinet, type CabinetView } from "../render/cabinet";
 import { Pix } from "../render/pix";
@@ -34,6 +34,10 @@ export class GameApp {
   /** Trainer (null = plain game, as in tests). */
   trainer: Trainer | null = null;
   mode: () => Mode = () => "free";
+  /** Strategy tag text for the screen (null hides it). */
+  tag: () => string | null = () => null;
+  /** Drawn over the cabinet (e.g. the strategy view), or null. */
+  overlay: ((p: Pix) => void) | null = null;
 
   constructor(
     private pix: Pix,
@@ -61,7 +65,7 @@ export class GameApp {
       label: t.label.toUpperCase(),
       rank: (c) => t.wasm.rank(c),
       suit: (c) => t.wasm.suit(c),
-      trainer: { mode: "free", feedback: null, lesson: null },
+      trainer: { mode: "free", tag: null, feedback: null, lesson: null },
     };
   }
 
@@ -76,6 +80,11 @@ export class GameApp {
     this.rebuildView();
     this.request();
     return true;
+  }
+
+  /** Game label + pay table, upper-case (as on the screen). */
+  label(): string {
+    return this.table.label.toUpperCase();
   }
 
   lineNames(): string[] {
@@ -106,7 +115,7 @@ export class GameApp {
     };
   }
 
-  press(b: ButtonId) {
+  press(b: GameButton) {
     const now = performance.now();
     this.pendingInputAt = now;
     const action = buttonToAction(b);
@@ -189,10 +198,12 @@ export class GameApp {
     this.view.state = this.state;
     this.view.trainer = {
       mode: this.mode(),
+      tag: this.tag(),
       feedback: this.trainer?.feedback ?? null,
       lesson: this.trainer?.lesson ?? null,
     };
     drawCabinet(this.pix, this.view, this.anim, now);
+    this.overlay?.(this.pix);
     if (this.pendingInputAt !== null) {
       this.lastInputToFrameMs = performance.now() - this.pendingInputAt;
       this.pendingInputAt = null;

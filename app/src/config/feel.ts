@@ -67,6 +67,10 @@ export const LAYOUT = {
   /** Practice mode: cards move left to make room for the feedback box. */
   practiceCardsX: 10,
   feedback: { x: 394, y: 128, w: 78, h: 99 },
+  /** Strategy tag (Practice and Lesson), bottom left; opens the view. */
+  strategyTag: { x: 6, y: 257 },
+  /** Strategy view panel: row pitch and tier tab width. */
+  strategyView: { x: 6, y: 6, w: 468, h: 258, row: 9, tabW: 96 },
   meters: { labelY: 232, valueY: 242, left: 30, right: 450 },
   gameLabel: { y: 259 },
 };

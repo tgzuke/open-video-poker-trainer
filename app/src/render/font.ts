@@ -74,6 +74,26 @@ export function textWidth(text: string, scale = 1): number {
   return text.length === 0 ? 0 : (text.length * ADVANCE - 1) * scale;
 }
 
+/** Splits text into lines of at most `max` characters, at spaces. */
+export function wrap(text: string, max: number): string[] {
+  const out: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    for (let w = word; w.length; ) {
+      const piece = w.slice(0, max);
+      w = w.slice(max);
+      if (!line) line = piece;
+      else if (line.length + 1 + piece.length <= max) line += " " + piece;
+      else {
+        out.push(line);
+        line = piece;
+      }
+    }
+  }
+  if (line) out.push(line);
+  return out;
+}
+
 // Suits: 0 clubs, 1 diamonds, 2 hearts, 3 spades (engine order "cdhs").
 const S = [
   // clubs
