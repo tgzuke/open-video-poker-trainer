@@ -2,6 +2,7 @@
 import { LAYOUT, PALETTE as P, SCREEN } from "../config/feel";
 import { FEEDBACK as F, type Mode } from "../config/trainer";
 import type { Feedback, LessonPrompt } from "../trainer/trainer";
+import { ruleDisplay } from "../trainer/ruleText";
 import type { GameState } from "../game/model";
 import type { Anim } from "./anim";
 import { RANK_TEXT, SUIT_IS_RED, textWidth } from "./font";
@@ -55,15 +56,22 @@ export function wrap(text: string, max: number): string[] {
   return out;
 }
 
+/** Feedback box text line pitch (7 px glyphs + 1 px gap). */
+export const FEEDBACK_LINE = 8;
+/** Characters per feedback box line. */
+export const FEEDBACK_CHARS = Math.floor((LAYOUT.feedback.w - 4) / 6);
+/** Rule lines that fit under the "BEST PLAY" label (above the cost line). */
+export const FEEDBACK_RULE_LINES = Math.floor((LAYOUT.feedback.h - 12 - 20) / FEEDBACK_LINE) - 1;
+
 const COLORS = { green: F.green, yellow: F.yellow, red: F.red };
 
 function drawFeedback(p: Pix, f: Feedback | null) {
   const B = LAYOUT.feedback;
   p.rect(B.x - 2, B.y - 2, B.w + 4, B.h + 4, P.frame);
   p.rect(B.x, B.y, B.w, B.h, F.boxBg);
-  const max = Math.floor((B.w - 4) / 6);
+  const max = FEEDBACK_CHARS;
   if (!f) {
-    centered(p, "FEEDBACK", B.x + B.w / 2, B.y + 40, 1, F.dim);
+    centered(p, "FEEDBACK", B.x + B.w / 2, B.y + Math.round(B.h / 2) - 3, 1, F.dim);
     return;
   }
   p.rect(B.x + 2, B.y + 2, B.w - 4, 13, COLORS[f.color]);
@@ -72,16 +80,16 @@ function drawFeedback(p: Pix, f: Feedback | null) {
   const lines: [string, string][] = [];
   if (f.rule) {
     lines.push([f.color === "green" ? "PLAYED" : "BEST PLAY", F.dim]);
-    for (const l of wrap(f.rule.toUpperCase(), max)) lines.push([l, F.text]);
+    for (const l of wrap(ruleDisplay(f.rule).toUpperCase(), max)) lines.push([l, F.text]);
   }
-  const room = Math.floor((B.y + B.h - 12 - y) / 9);
+  const room = Math.floor((B.y + B.h - 12 - y) / FEEDBACK_LINE);
   if (lines.length > room) {
     lines.length = room;
     lines[room - 1] = [lines[room - 1][0].slice(0, max - 2) + "..", F.text];
   }
   for (const [l, c] of lines) {
     p.text(l, B.x + 3, y, 1, c);
-    y += 9;
+    y += FEEDBACK_LINE;
   }
   if (f.cost > 0) p.text(`COST ${f.cost.toFixed(2)}`, B.x + 3, B.y + B.h - 10, 1, F.text);
 }

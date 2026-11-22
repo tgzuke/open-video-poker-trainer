@@ -9,6 +9,7 @@ import { LESSON_TEXT, type Checking, type Mode } from "../config/trainer";
 import type { DealCheck } from "../engine/protocol";
 import { gradeHold, graceAt, heldMask, samePlay, type Color, type Grade } from "./grade";
 import type { HandRecord } from "./stats";
+import { ruleDisplay } from "./ruleText";
 
 export interface TrainerSettings {
   mode: Mode;
@@ -120,7 +121,7 @@ export class Trainer {
       c.mistakes === 1
         ? { message: LESSON_TEXT.first, hint: null }
         : c.mistakes === 2
-          ? { message: LESSON_TEXT.rule(g.expectedRule!.toUpperCase()), hint: null }
+          ? { message: LESSON_TEXT.rule(ruleDisplay(g.expectedRule!).toUpperCase()), hint: null }
           : { message: LESSON_TEXT.hold, hint: g.expected };
     this.onChange();
     return "block";

@@ -1,5 +1,6 @@
 // Stats screen (SPEC §5.4): session and lifetime side by side, mouse-driven.
 import { DISTANCE_KEYS, type Agg, type StatsBook } from "../trainer/stats";
+import { ruleDisplay } from "../trainer/ruleText";
 
 function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -54,7 +55,7 @@ function ruleTable(a: Agg, key: string | null, order: string[]): string {
   const rows = keys
     .map((r) => {
       const t = book[r];
-      return `<tr><td>${esc(r)}</td><td class="num">${n(t.opportunities)}</td><td class="num">${n(t.misses)}</td><td class="num">${pct(t.misses, t.opportunities)}</td></tr>`;
+      return `<tr><td title="${esc(r)}">${esc(ruleDisplay(r))}</td><td class="num">${n(t.opportunities)}</td><td class="num">${n(t.misses)}</td><td class="num">${pct(t.misses, t.opportunities)}</td></tr>`;
     })
     .join("");
   return `<table class="rules"><tr><th>Rule</th><th>Chances</th><th>Misses</th><th>Miss rate</th></tr>${rows}</table>`;

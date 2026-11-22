@@ -437,6 +437,7 @@ frames observed). Game bundle 32 kB JS (11.5 kB gzip) + 271 kB wasm.
 - Feedback box size and position (`LAYOUT.feedback`, `practiceCardsX`),
   its colors, and wording (CORRECT / CLOSE / WRONG / OFF STRATEGY).
 - Lesson messages (`LESSON_TEXT`) and the green hint frame.
-- Rule names appear in strategy notation (e.g. "4 TO A STRAIGHT W=2").
+- Rule names are shown in plain words (e.g. "4 to an outside straight";
+  table in `docs/strategy-format.md`). Files keep the exact notation.
 - Session stats last until you reset them; they are not reset by time.
 

@@ -44,6 +44,28 @@ accidentally break trips into a pair.
 | `sp=0`, `sp>=1`, `sp>=2` | straight penalty: number of discarded cards that would fit a straight with the held ranks |
 | `prefer low` | when several card sets match, keep the lowest ranks instead of the highest |
 
+### How rules are shown in the game
+
+Files (and anything written by hand) always use the notation above. The
+game translates it into plain words when it shows a rule (feedback box,
+Lesson hints, stats screen); the stats screen shows the file notation on
+hover. Display only: the parser does not accept the plain words.
+
+| File notation | Shown in the game |
+|---|---|
+| `4 to a straight w=2` | 4 to an outside straight |
+| `4 to a straight w=1` | 4 to an inside straight (also J-Q-K-A, which fits only one straight) |
+| `w=N` on other draws | N ways (`3 to a straight flush w=2` → 3 to a straight flush, 2 ways) |
+| `h=N` | N high cards (`h=0` → no high cards) |
+| `fp=0` / `sp=0` | no flush penalty / no straight penalty |
+| `fp>=1` / `sp>=1` | flush penalty / straight penalty |
+| `fp>=2` / `sp>=2` | 2+ flush penalty / 2+ straight penalty |
+| `prefer low` | keep the lowest |
+| `pair J-A` / `pair 2-T` | pair, J or better / pair, 10 or lower |
+| `four of a kind A kicker 2-4` | four of a kind, A, kicker 2-4 |
+| all six pat hands on one line | any pat hand (shorter lists say "quads") |
+| `T` in exact ranks (`KQJT suited`) | 10 (KQJ10 suited) |
+
 ### When a rule matches several card sets
 
 The rule keeps the **highest ranks** (or lowest, with `prefer low`), then the
