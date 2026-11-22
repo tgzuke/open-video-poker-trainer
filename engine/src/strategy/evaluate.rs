@@ -117,13 +117,10 @@ pub fn evaluate(an: &Analyzer, pays: &[i64], bet: u32, strategy: &Strategy) -> R
     let deals: f64 = an.classes.iter().map(|c| c.weight as f64).sum();
     let mut rules = vec![RuleStats::default(); strategy.rules.len()];
     let mut holds = Vec::with_capacity(an.classes.len());
-    let mut best_holds = Vec::with_capacity(an.classes.len());
     let (mut undefined, mut ambiguous) = (vec![], vec![]);
     let mut worst: Vec<(f64, usize, usize, u8, u8)> = vec![];
-    for cl in &an.classes {
-        let evs = an.hold_evs(&cl.cards, pays);
+    let (res, opt) = an.policy_and_optimal(pays, bet, |ci, cl, evs| {
         let best = evs.best();
-        best_holds.push(best as u8);
         let feats = subset_features(game, &cl.cards, hi);
         let p = play_features(strategy, &feats);
         let problem = || Problem {
@@ -147,14 +144,13 @@ pub fn evaluate(an: &Analyzer, pays: &[i64], bet: u32, strategy: &Strategy) -> R
                     st.disagrees += w;
                     let l = w * (evs.ev(best) - evs.ev(p.hold as usize));
                     st.loss += l;
-                    worst.push((l, holds.len(), i, p.hold, best as u8));
+                    worst.push((l, ci, i, p.hold, best as u8));
                 }
             }
         }
         holds.push(p.hold);
-    }
-    let ret = an.holds_return(pays, bet, &holds).ret;
-    let optimal = an.holds_return(pays, bet, &best_holds).ret;
+        p.hold
+    });
     worst.sort_by(|a, b| b.0.total_cmp(&a.0));
     worst.truncate(25);
     let worst = worst
@@ -162,8 +158,8 @@ pub fn evaluate(an: &Analyzer, pays: &[i64], bet: u32, strategy: &Strategy) -> R
         .map(|(l, c, r, h, b)| (l, game.deck().hand_name(&an.classes[c].cards), r, h, b))
         .collect();
     Report {
-        ret,
-        optimal,
+        ret: res.ret,
+        optimal: opt.ret,
         bet,
         rules,
         undefined,

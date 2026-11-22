@@ -1,21 +1,59 @@
 //! Strategy layer (SPEC §4): rule language, evaluator, generator.
 
+pub mod compare;
 pub mod evaluate;
 pub mod features;
 pub mod generate;
 pub mod rule;
 pub mod trainer;
 
+pub use compare::{Change, ChangeKind, Comparison, compare};
 pub use evaluate::{Play, Report, evaluate, matching_rules, play};
 pub use generate::{MAX_LINES, MIN_LINES, TIERS, Tier, generate, generate_tiers, tier};
 pub use rule::{Rule, Strategy};
 pub use trainer::{DealCheck, deal_check};
 
+/// The single-hand rule for one pat-hand bit of `Pattern::Pat`.
+fn single_pat(bit: u32) -> rule::Pattern {
+    use crate::eval::HandKind;
+    use rule::{ALL_RANKS, Pattern};
+    match bit {
+        0 => Pattern::Made(HandKind::RoyalFlush),
+        1 => Pattern::Made(HandKind::StraightFlush),
+        2 => Pattern::Quads {
+            ranks: ALL_RANKS,
+            kicker: None,
+        },
+        3 => Pattern::Made(HandKind::FullHouse),
+        4 => Pattern::Made(HandKind::Flush),
+        _ => Pattern::Made(HandKind::Straight),
+    }
+}
+
+/// Writes each combined pat-hand line as one line per hand, in the same
+/// place. Play is unchanged: a dealt hand is only one kind of pat hand.
+pub fn split_pat_lines(strategy: &Strategy) -> Strategy {
+    let mut rules = Vec::with_capacity(strategy.rules.len());
+    for r in &strategy.rules {
+        match r.pattern {
+            rule::Pattern::Pat(m) => {
+                for bit in (0..6).filter(|b| m >> b & 1 == 1) {
+                    rules.push(Rule {
+                        pattern: single_pat(bit),
+                        ..*r
+                    });
+                }
+            }
+            _ => rules.push(*r),
+        }
+    }
+    Strategy { rules }
+}
+
 /// Removes pat hands from a combined pat line when an earlier unqualified
 /// line already keeps that hand (the bit could never fire). Play is
 /// unchanged; a line left with one pat hand becomes that single rule.
 pub fn tidy(strategy: &Strategy) -> Strategy {
-    use crate::eval::HandKind;
     use rule::{ALL_RANKS, Pattern, pat_bit};
     let mut covered = 0u8;
     let mut rules = Vec::with_capacity(strategy.rules.len());
@@ -27,17 +65,7 @@ pub fn tidy(strategy: &Strategy) -> Strategy {
                 continue; // nothing reachable: drop the line
             }
             r.pattern = if left.count_ones() == 1 {
-                match left.trailing_zeros() {
-                    0 => Pattern::Made(HandKind::RoyalFlush),
-                    1 => Pattern::Made(HandKind::StraightFlush),
-                    2 => Pattern::Quads {
-                        ranks: ALL_RANKS,
-                        kicker: None,
-                    },
-                    3 => Pattern::Made(HandKind::FullHouse),
-                    4 => Pattern::Made(HandKind::Flush),
-                    _ => Pattern::Made(HandKind::Straight),
-                }
+                single_pat(left.trailing_zeros())
             } else {
                 Pattern::Pat(left)
             };

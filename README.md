@@ -34,6 +34,7 @@ cargo run --release --bin ovp -- holds "Js Ts 9s 2h 2d"
 cargo run --release --bin ovp -- verify --all       # §3.3 suite for every game
 cargo run --release --bin ovp -- strategy eval ../strategies/jacks-or-better-9-6/expert.txt
 cargo run --release --bin ovp -- strategy play ../strategies/jacks-or-better-9-6/beginner.txt "Ah Kh Qh Jh 2c"
+cargo run --release --bin ovp -- strategy compare ../strategies/jacks-or-better-9-6/intermediate.txt ../strategies/jacks-or-better-8-5/intermediate.txt -p jacks-or-better-8-5
 cargo run --release --bin ovp -- strategy generate -p bonus-poker-8-5 --tier intermediate
 cargo run --release --bin ovp -- strategy generate -p double-double-bonus-8-5 --tier beginner --max-lines 20
 cargo run --release --bin ovp -- strategy generate --all     # regenerate strategies/ (~20 min)

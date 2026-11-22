@@ -269,6 +269,56 @@ impl Engine {
         .to_string())
     }
 
+    /// Pay table comparison (SPEC §4.5) on this engine's pay table (table
+    /// B): strategy A's text against strategy B's, as JSON. See
+    /// `strategy::compare`.
+    #[wasm_bindgen(js_name = compareStrategies)]
+    pub fn compare_strategies(
+        &self,
+        text_a: &str,
+        text_b: &str,
+        bet: u32,
+        progressive_royal: Option<f64>,
+    ) -> Result<String, JsError> {
+        let a = Strategy::parse(text_a).map_err(|e| js(format!("strategy A: {e}")))?;
+        let b = Strategy::parse(text_b).map_err(|e| js(format!("strategy B: {e}")))?;
+        let pays = self.pays_i64(bet, progressive_royal)?;
+        let c = strategy::compare(&self.analyzer, &pays, bet, &a, &b);
+        let kind = |k| match k {
+            strategy::ChangeKind::Removed => "removed",
+            strategy::ChangeKind::Added => "added",
+            strategy::ChangeKind::Moved => "moved",
+        };
+        let texts = |s: &Strategy| s.rules.iter().map(|r| r.to_string()).collect::<Vec<_>>();
+        Ok(serde_json::json!({
+            "aOnB": c.a_on_b.to_f64(),
+            "bOnB": c.b_on_b.to_f64(),
+            "optimalB": c.optimal_b.to_f64(),
+            "a": texts(&c.a),
+            "b": texts(&c.b),
+            "changes": c.changes.iter().map(|ch| serde_json::json!({
+                "kind": kind(ch.kind),
+                "rule": ch.rule.to_string(),
+                "from": ch.from,
+                "to": ch.to,
+                "delta": ch.delta,
+            })).collect::<Vec<_>>(),
+            "differ": c.differ,
+            "differences": c.differences.iter().take(60).map(|d| serde_json::json!({
+                "aRule": d.a_rule,
+                "bRule": d.b_rule,
+                "prob": d.prob,
+                "effect": d.effect,
+                "hand": d.hand,
+                "aHold": d.a_hold,
+                "bHold": d.b_hold,
+                "gain": d.gain,
+            })).collect::<Vec<_>>(),
+            "differenceCount": c.differences.len(),
+        })
+        .to_string())
+    }
+
     /// How a strategy plays a hand, as JSON: deciding rule (0-based or
     /// null), hold mask, and every matching rule with its hold, in order.
     #[wasm_bindgen(js_name = playStrategy)]
@@ -297,6 +347,9 @@ fn report_json(strat: &Strategy, r: &strategy::Report) -> serde_json::Value {
         "undefinedCount": r.undefined.len(),
         "ambiguous": r.ambiguous.iter().take(20).map(|p| &p.hand).collect::<Vec<_>>(),
         "ambiguousCount": r.ambiguous.len(),
+        "worst": r.worst.iter().take(10).map(|(l, hand, rule, hold, best)| serde_json::json!({
+            "loss": l, "hand": hand, "rule": rule, "hold": hold, "best": best,
+        })).collect::<Vec<_>>(),
         "rules": strat.rules.iter().zip(&r.rules).map(|(rule, st)| serde_json::json!({
             "text": rule.to_string(),
             "fires": st.fires,
@@ -304,6 +357,19 @@ fn report_json(strat: &Strategy, r: &strategy::Report) -> serde_json::Value {
             "loss": st.loss,
         })).collect::<Vec<_>>(),
     })
+}
+
+/// Checks one strategy line: its canonical text, or an error. Comments and
+/// blank lines are not rules.
+#[wasm_bindgen(js_name = parseRule)]
+pub fn parse_rule(text: &str) -> Result<String, JsError> {
+    let body = text.split('#').next().unwrap_or("").trim();
+    if body.is_empty() {
+        return Err(js("empty rule".into()));
+    }
+    body.parse::<strategy::Rule>()
+        .map(|r| r.to_string())
+        .map_err(js)
 }
 
 /// Lightweight rules for the game screen: hand categories and pays, with no

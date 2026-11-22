@@ -23,6 +23,9 @@ usage:
   ovp strategy generate [TABLE] [--bet N] [--progressive C] --tier T [--max-lines N] [--out FILE]
   ovp strategy generate --all [--out DIR]       every preset × every tier
   ovp strategy eval FILE [TABLE] [--bet N] [--progressive C]
+  ovp strategy compare FILE_A FILE_B [TABLE_B] [--bet N] [--progressive C]
+                                                how B differs from A, each change's
+                                                EV effect playing table B
   ovp strategy tidy FILE...                     tidy + reading order (play unchanged)
   ovp strategy play FILE [TABLE] \"As Ks Qs Js 2c\"
 
@@ -568,6 +571,84 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
                 }
             }
             Ok(rep.is_complete())
+        }
+        "compare" => {
+            let read = |i: usize| -> Result<Strategy, String> {
+                let file = o
+                    .positional
+                    .get(i)
+                    .ok_or("strategy compare needs FILE_A and FILE_B")?;
+                let text = std::fs::read_to_string(file).map_err(|e| format!("{file}: {e}"))?;
+                Strategy::parse(&text).map_err(|e| format!("{file}: {e}"))
+            };
+            let (a, b) = (read(1)?, read(2)?);
+            let (game, table) = load_table(o)?;
+            let w = wager(o, &game)?;
+            let pays = game.pays(&table, w)?;
+            let an = Analyzer::new(game);
+            let t = Instant::now();
+            let c = strategy::compare(&an, &pays, w.bet, &a, &b);
+            let pct = |r: f64| r * 100.0;
+            println!("Table B: {} [{}], {}", table.name, table.id, describe_wager(w));
+            println!("  optimal          {:.6}%", pct(c.optimal_b.to_f64()));
+            println!("  B's strategy     {:.6}%", pct(c.b_on_b.to_f64()));
+            println!(
+                "  A's strategy     {:.6}%  ({:.6} credits/hand less than B's)",
+                pct(c.a_on_b.to_f64()),
+                c.cost_credits()
+            );
+            println!("\nChanges from A to B (applied in order; effect = change in return on table B):");
+            let line = |i: Option<usize>| i.map_or("-".to_string(), |i| (i + 1).to_string());
+            for ch in &c.changes {
+                let kind = match ch.kind {
+                    strategy::ChangeKind::Removed => "removed",
+                    strategy::ChangeKind::Added => "added",
+                    strategy::ChangeKind::Moved => "moved",
+                };
+                println!(
+                    "  {kind:<8} A {:>3}  B {:>3}  {:+.6}%  {:+.6} cr/hand  {}",
+                    line(ch.from),
+                    line(ch.to),
+                    pct(ch.delta),
+                    ch.delta * w.bet as f64,
+                    ch.rule
+                );
+            }
+            let sum: f64 = c.changes.iter().map(|ch| ch.delta).sum();
+            println!(
+                "  total {:+.6}% ({} changes, {:.0} ms)",
+                pct(sum),
+                c.changes.len(),
+                ms(t)
+            );
+            println!(
+                "\nHands played differently: {:.4}% of deals, by deciding rule (A -> B):",
+                pct(c.differ)
+            );
+            let held = |hand: &str, m: u8| -> String {
+                hand.split(' ')
+                    .enumerate()
+                    .map(|(i, c)| if m >> i & 1 == 1 { c.to_string() } else { "--".into() })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            };
+            for d in c.differences.iter().take(20) {
+                println!(
+                    "  {:>8.4}%  {:+.6} cr/hand  {} -> {}",
+                    pct(d.prob),
+                    d.effect,
+                    c.a.rules[d.a_rule],
+                    c.b.rules[d.b_rule]
+                );
+                println!(
+                    "             e.g. {}: A {}, B {} ({:+.4} credits)",
+                    d.hand,
+                    held(&d.hand, d.a_hold),
+                    held(&d.hand, d.b_hold),
+                    d.gain
+                );
+            }
+            Ok(true)
         }
         "tidy" => {
             // Re-tidies and re-evaluates strategy files in place (no

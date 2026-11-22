@@ -225,6 +225,28 @@ impl Analyzer {
         acc.finish(bet)
     }
 
+    /// Exact returns of a hold policy and of optimal play in one pass (each
+    /// class's draw counts are computed once). `policy` gets the class index,
+    /// the class and its hold EVs and returns the hold mask.
+    pub fn policy_and_optimal<F: FnMut(usize, &HandClass, &HoldEvs) -> u8>(
+        &self,
+        pays: &[i64],
+        bet: u32,
+        mut policy: F,
+    ) -> (GameResult, GameResult) {
+        let n = self.tables.deck_size();
+        let k = self.game.num_categories();
+        let (mut acc, mut opt) = (Accum::new(n, k), Accum::new(n, k));
+        for (i, cl) in self.classes.iter().enumerate() {
+            let counts = self.tables.hold_counts(&self.game, &cl.cards);
+            let evs = counts.evs(pays);
+            let m = policy(i, cl, &evs) as usize;
+            acc.add(cl.weight, &counts, &evs, m);
+            opt.add(cl.weight, &counts, &evs, evs.best());
+        }
+        (acc.finish(bet), opt.finish(bet))
+    }
+
     /// Optimal return over every deal, without the symmetry reduction.
     pub fn optimal_without_symmetry(&self, pays: &[i64], bet: u32) -> GameResult {
         let mut acc = Accum::new(self.tables.deck_size(), self.game.num_categories());
