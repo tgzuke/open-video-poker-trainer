@@ -339,3 +339,104 @@ frames observed). Game bundle 32 kB JS (11.5 kB gzip) + 271 kB wasm.
 ### M4 review
 - Owner kept the endless win flash and the dense DDB pay table as is.
 - Added a dealt-win chime: a short rising two-note cue (`Sfx.dealtWin`) when the dealt hand already pays, timed to the last card reveal. Verified in Chrome: it fired on exactly the 37 paying deals out of 200, with no errors.
+
+## Milestone 5: Trainer
+
+### What was built
+- **Engine** (`strategy/trainer.rs`, wasm `setTrainerStrategy` / `dealCheck`):
+  for each dealt hand, one call returns everything needed to judge any
+  hold: exact EVs, exact-tie groups, the strategy's rule and hold, the rules
+  that match the hand (in order), and the **rule distance** of all 32 holds.
+  - Distance = position, in the per-hand list of matching rules, of the
+    first rule that describes the player's hold exactly (SPEC §5.3).
+  - A hold tied in EV with the strategy's is distance 0 (the same play).
+  - No rule describes the hold: off-strategy.
+  - Decision: the deciding rule's pattern but the wrong cards (e.g. KQ
+    where the rule picks QJ) counts as distance 1: right rule, wrong cards.
+- **Checking modes** (`trainer/grade.ts`):
+  - Strategy (default): right iff the same play as the strategy.
+  - Pure EV: right iff within the grace margin of the best hold. The margin
+    is 0.05 credits at max bet, scaled by bet/max bet, and adjustable.
+  - Without a preset strategy (custom pay tables), checking falls back to
+    Pure EV and rule stats are off.
+- **Modes** (`trainer/trainer.ts`):
+  - **Lesson:** a wrong hold blocks the draw with a buzz.
+    1. First mistake: "try again".
+    2. Second mistake: the rule's name. If no rule describes the right
+       play (Pure EV), it skips straight to step 3.
+    3. Third mistake: green frames around the cards to hold, which must
+       then be entered.
+  - **Practice:** a permanent feedback box right of the cards; the cards
+    shift left to make room.
+    - The box shows CORRECT (green), CLOSE (yellow, distance 1), or
+      WRONG / OFF STRATEGY (red).
+    - It also shows the best play's rule and the credits it cost.
+    - In Pure EV mode, a wrong play that still follows the strategy is
+      yellow.
+  - **Free Play:** no feedback.
+  - Every mode records stats. In Lesson, stats judge the **first** hold
+    tried.
+- **Stats** (`trainer/stats.ts`, `store.ts`, `ui/statsView.ts`; STATS
+  button). Session and lifetime are shown side by side, each with its own
+  reset (two clicks).
+  - Hands, credits bet and won, and actual return.
+  - EV loss (1) vs optimal, (2) vs strategy, and (3) the strategy's own
+    loss, in credits: totals and per hand. Metric (4) is still open
+    (SPEC §5.4).
+  - Deviations from the strategy.
+  - Distance histogram (0, 1, 2, 3, 4+, off).
+  - Results by pay line.
+  - Misses, chances and miss rate per rule for the current strategy.
+- **Persistence and settings:**
+  - Stats are saved in IndexedDB, batched every 250 ms and on page hide.
+    Session stats persist across reloads until you reset them.
+  - The menu's Trainer section sets the mode, checking mode, strategy tier
+    and grace margin. These are saved in prefs.
+- **Engine worker:** the game page now has the engine worker for these
+  checks. A check is asked for at deal time and normally arrives before
+  Draw. If the player draws first, Lesson waits for it (queued);
+  Practice and Free Play never wait.
+
+### Verification
+- Rust (52 tests pass):
+  - The distance cases above, written by hand.
+  - EV ties checked against the exact comparison.
+  - Invariants on 3,000 random hands.
+  - On 300 hands for each of the 60 shipped strategies, the deal check
+    agrees with play.
+- Vitest (45 tests pass):
+  - Green, yellow and red grading.
+  - Pure EV grace and its bet scaling.
+  - Fallback when there's no strategy.
+  - The Lesson sequence: wait, block, rule, marked cards, then the
+    entered hold.
+  - Practice with a late check; Free Play.
+  - The game app's blocked and queued draws.
+  - Stats sums, including (1) = (2) + (3).
+  - Save, reload, reset, and malformed saved data.
+  - Prefs.
+- Checked in Chrome:
+  - The Practice box and the Lesson hint frames.
+  - Stats survived a page reload and the stats screen rendered.
+  - I cleared my test hands afterwards.
+
+### Performance (Chrome)
+- Engine check per deal: 4.6 ms median, 5.7 ms max, round trip to the
+  worker.
+- Key handler: 0.4 ms median, 3 ms max.
+- Input to frame: 2 ms median, 16 ms max.
+
+### Open questions
+- Stats metric (4) (SPEC §5.4), still undefined.
+- "Right rule, wrong cards" counts as distance 1 (yellow). Should it be
+  red instead?
+
+### For playtesting (`config/trainer.ts`, `config/feel.ts`)
+- Defaults: Practice mode, Strategy checking, the Intermediate strategy,
+  and a 0.05 grace margin.
+- Feedback box size and position (`LAYOUT.feedback`, `practiceCardsX`),
+  its colors, and wording (CORRECT / CLOSE / WRONG / OFF STRATEGY).
+- Lesson messages (`LESSON_TEXT`) and the green hint frame.
+- Rule names appear in strategy notation (e.g. "4 TO A STRAIGHT W=2").
+- Session stats last until you reset them; they are not reset by time.
+
