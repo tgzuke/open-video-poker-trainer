@@ -103,12 +103,12 @@ For any strategy and pay table, it reports:
 - Must run in the browser, in a worker, for custom pay tables. Preset strategies are generated offline from the command line and shipped with the game.
 - We generate our own strategies. Do not copy published strategy lists verbatim.
 
-### 4.4 Strategy editor (milestone 6)
+### 4.4 Strategy editor (milestone 7)
 - Reorder, add, remove and edit rules.
 - The evaluator reruns live and shows the change in return and EV loss.
 - The completeness checker shows any undefined or ambiguous hands.
 
-### 4.5 Pay table comparison screen (milestone 6)
+### 4.5 Pay table comparison screen (milestone 7)
 A separate screen, outside the game flow, showing how the strategy for pay table A differs from pay table B: rules added, removed or moved, and the EV effect of each. The main use is showing what changes on a short-pay machine compared with the full-pay version.
 
 ## 5. Trainer
@@ -189,8 +189,8 @@ Each milestone has acceptance criteria. Don't start the next one until the curre
 3. **Strategy layer.** Rule language, completeness/ambiguity checker, evaluator, and the generator for all three tiers. *Done when:* generated Beginner, Intermediate and Expert strategies exist for every preset, all are complete, and each one's EV loss is reported.
 4. **Playable game.** Cabinet UI, keyboard controls, Free Play, sound and speed settings. *Done when:* a human can play at about one hand every 2 seconds with no input lag.
 5. **Trainer.** Checking modes, Lesson and Practice modes, the feedback box, rule distance and stats. *Done when:* all mode behaviours in §5 work and stats persist across reloads.
-6. **Strategy editor and comparison screen.**
-7. **itch.io alpha build.**
+6. **itch.io alpha build.** (Moved ahead of the editor at the owner's request.) *Done when:* a zip with `index.html` at its root runs as itch.io serves HTML5 games (from a subfolder, in a cross-origin iframe) with no dev-only pages, and preferences and stats persist across reloads there.
+7. **Strategy editor and comparison screen.**
 
 ## 9. Open questions
 - Stats metric (4): its definition (§5.4).

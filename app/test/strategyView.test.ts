@@ -9,6 +9,7 @@ import { keymapConflicts } from "../src/input/keyboard";
 import { isGameButton } from "../src/input/actions";
 import { loadPrefs } from "../src/ui/prefs";
 import { LAYOUT, SCREEN } from "../src/config/feel";
+import { screenButtonRects } from "../src/render/cabinet";
 import type { Tier } from "../src/engine/protocol";
 
 (globalThis as unknown as { window: unknown }).window = { addEventListener() {}, removeEventListener() {} };
@@ -82,6 +83,12 @@ describe("strategy view", () => {
     // The tag stays clear of the centered game label for every preset.
     expect(tag.x + tag.w).toBeLessThan(SCREEN.w / 2 - (("DOUBLE DOUBLE BONUS 9/6".length * 6) / 2));
     expect(LAYOUT.strategyTag.y).toBeGreaterThan(LAYOUT.meters.valueY + 14);
+    // STATS / MENU sit on screen, right of the centered game label, apart.
+    const btns = screenButtonRects().map(([, , r]) => r);
+    expect(btns).toHaveLength(2);
+    expect(btns[0].x + btns[0].w).toBeLessThan(btns[1].x);
+    expect(btns[1].x + btns[1].w).toBeLessThanOrEqual(SCREEN.w);
+    expect(btns[0].x).toBeGreaterThan(SCREEN.w / 2 + ("DOUBLE DOUBLE BONUS 9/6".length * 6) / 2);
   });
 });
 

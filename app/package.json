@@ -9,7 +9,8 @@
     "dev": "npm run build:wasm && vite",
     "build": "npm run build:wasm && tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build:wasm && vitest run"
+    "test": "npm run build:wasm && vitest run",
+    "build:itch": "npm run build:wasm && tsc --noEmit && vitest run && vite build --mode itch && node scripts/pack-itch.mjs"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

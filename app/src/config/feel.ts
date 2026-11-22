@@ -68,9 +68,11 @@ export const LAYOUT = {
   practiceCardsX: 10,
   feedback: { x: 394, y: 128, w: 78, h: 99 },
   /** Strategy tag (Practice and Lesson), bottom left; opens the view. */
-  strategyTag: { x: 6, y: 257 },
+  strategyTag: { x: 6, y: 258 },
+  /** STATS and MENU buttons, bottom right (right edge x). */
+  screenButtons: { right: 474, y: 258, gap: 4 },
   /** Strategy view panel: row pitch and tier tab width. */
-  strategyView: { x: 6, y: 6, w: 468, h: 258, row: 9, tabW: 96 },
+  strategyView: { x: 2, y: 2, w: 476, h: 266, row: 9, tabW: 96 },
   meters: { labelY: 232, valueY: 242, left: 30, right: 450 },
   gameLabel: { y: 259 },
 };

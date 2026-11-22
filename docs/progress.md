@@ -459,3 +459,59 @@ frames observed). Game bundle 32 kB JS (11.5 kB gzip) + 271 kB wasm.
   `LAYOUT.strategyView`), and the S key. The view opens only in Practice and
   Lesson, not Free Play.
 
+## Milestone 6: itch.io alpha build
+
+Moved ahead of the strategy editor at the owner's request (SPEC §8 updated:
+the editor and comparison screen are now Milestone 7).
+
+### What was built
+- `npm run build:itch` (in `app/`) runs, in order:
+  1. rebuild the wasm;
+  2. type-check;
+  3. run the app tests;
+  4. build the game page only, without the engine dev shell, into
+     `app/dist-itch`;
+  5. pack the zip with `index.html` at its root:
+     `release/open-video-poker-trainer-0.1.0-html5.zip` (65 files,
+     825 kB unpacked, 257 kB zipped).
+- `app/scripts/pack-itch.mjs` refuses to pack if any of these fail:
+  - `index.html` is at the root and no dev page is included;
+  - all paths are relative and a `.wasm` file is present;
+  - the build is within itch.io's 1,000-file and 200 MB limits.
+- **STATS and MENU moved onto the canvas** as framed buttons at bottom
+  right, in the same style as the strategy tag.
+  - Why: at itch.io's exact 16:9 embed there is no letterboxing, so the old
+    HTML buttons covered the pay table's 5-coin column.
+  - The bottom row moved down 1 px to clear the credit meter.
+  - The strategy view now covers the whole screen.
+- Clicking the game gives the iframe keyboard focus.
+- The menu shows the version, the MIT license and the "not a gambling
+  product" note.
+- `docs/itch.md` has upload steps, embed settings (960×540, fullscreen
+  button on, not mobile, free with no donations) and suggested page text.
+- Screenshots are in `release/screenshots/`. Like the zip, they are not
+  committed.
+
+### Verification
+- The release zip was unpacked into `/html/<id>/` on one origin and
+  embedded in an iframe from a different origin, as itch.io does:
+  - no console errors;
+  - the canvas STATS and MENU buttons work;
+  - settings persisted across reloads inside the iframe.
+- The release build opened directly: keys play, the trainer feedback
+  works, and IndexedDB stats persisted across reloads.
+- The browser automation tool couldn't send key presses into the
+  cross-origin iframe. Keys inside a real itch.io embed should be checked by
+  hand after upload.
+- Tests: 52 app tests, 52 Rust tests, all passing.
+
+### Open questions
+- Should a "Practice" yellow lamp say CLOSE? Next to the CLOSE button in the
+  strategy view the word does double duty; "NEAR MISS" or "1 RULE OFF" are
+  options.
+
+### For playtesting
+- Keys inside the real itch.io embed (click the game first).
+- Embed size 960×540 vs. larger; fullscreen.
+- The bottom-right STATS/MENU buttons.
+

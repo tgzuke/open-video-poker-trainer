@@ -11,7 +11,7 @@ A free, open-source video poker trainer. Not a gambling product. See
 | `data/` | Game definitions and pay table libraries (JSON). Every file is compiled into the engine automatically; adding a preset is data entry. |
 | `app/` | TypeScript + Vite browser app: the game (`index.html`) and an engine dev shell (`dev.html`). Heavy engine work runs in a Web Worker. Default keys: `app/src/config/keymap.ts`; timing, colors, layout: `app/src/config/feel.ts`; trainer defaults: `app/src/config/trainer.ts`. |
 | `strategies/` | Generated strategies: one folder per preset pay table, `beginner/intermediate/expert.txt`. Format: [docs/strategy-format.md](docs/strategy-format.md). |
-| `docs/` | Progress notes per milestone; strategy format. |
+| `docs/` | Progress notes per milestone; strategy format; publishing on itch.io. |
 
 ## Requirements
 
@@ -44,6 +44,7 @@ npm install
 npm test           # builds the wasm package, then runs vitest against it
 npm run dev        # dev server: game at /, engine dev shell at /dev.html
 npm run build      # static build in app/dist
+npm run build:itch # itch.io release zip in release/ (see docs/itch.md)
 ```
 
 ## License

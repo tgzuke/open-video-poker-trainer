@@ -138,7 +138,8 @@ export class Menu {
       <div class="note">Play credits only. Nothing here is money.</div>
       <h3>Display</h3>
       <button id="m-full">Full screen on/off</button>
-      <p><button id="m-close">Close (Esc)</button></p>`;
+      <p><button id="m-close">Close (Esc)</button></p>
+      <div class="note">Open Video Poker Trainer ${__APP_VERSION__} (alpha). Free and open source under the MIT License. A training tool, not a gambling product: no real money, no purchases. Art, font and sounds are original.</div>`;
     const $ = <T extends HTMLElement>(id: string) => this.dlg.querySelector<T>(`#${id}`)!;
     $<HTMLSelectElement>("m-table").onchange = (e) => {
       p.paytableId = (e.target as HTMLSelectElement).value;

@@ -17,6 +17,7 @@ import { defaultKv, Stats } from "./trainer/store";
 import { StatsDialog, strategyRuleOrder } from "./ui/statsView";
 import { StrategyScreen } from "./ui/strategyScreen";
 import { inRect, strategyTagRect } from "./render/strategyView";
+import { screenButtonRects } from "./render/cabinet";
 import { isGameButton, type ButtonId } from "./input/actions";
 import { keyLabel } from "./ui/settings";
 import type { Tier } from "./engine/protocol";
@@ -206,9 +207,14 @@ async function main() {
   canvas.addEventListener("pointerdown", (e) => {
     if (dialogsOpen()) return;
     const { x, y } = pix.toLogical(canvas, e.clientX, e.clientY);
+    // Keyboard focus follows the click (itch.io embeds the game in an iframe).
+    window.focus();
     if (strategyScreen.click(x, y)) return;
     const tag = tagLabel();
-    if (tag && inRect(strategyTagRect(tag), x, y)) press("strategy");
+    if (tag && inRect(strategyTagRect(tag), x, y)) return press("strategy");
+    const hit = screenButtonRects().find(([, , r]) => inRect(r, x, y));
+    if (hit?.[0] === "menu") menu.show();
+    if (hit?.[0] === "stats") statsDialog.show();
   });
   canvas.addEventListener(
     "wheel",
@@ -220,8 +226,6 @@ async function main() {
     { passive: false },
   );
 
-  document.getElementById("menu-btn")!.onclick = () => menu.show();
-  document.getElementById("stats-btn")!.onclick = () => statsDialog.show();
   // Save stats before the page goes away.
   window.addEventListener("pagehide", () => void stats.flush());
   void loadTrainer();

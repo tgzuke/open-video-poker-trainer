@@ -6,18 +6,9 @@ import { FEEDBACK as F } from "../config/trainer";
 import { TIERS, type Tier } from "../engine/protocol";
 import { ruleDisplay } from "../trainer/ruleText";
 import { textWidth, wrap } from "./font";
-import type { Pix } from "./pix";
+import { inRect, type Pix, type Rect } from "./pix";
 
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export function inRect(r: Rect, x: number, y: number): boolean {
-  return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
-}
+export { inRect, type Rect };
 
 /** What the view shows. `rules` null = loading; empty = no strategy. */
 export interface StrategyContent {

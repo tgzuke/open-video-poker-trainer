@@ -6,6 +6,17 @@
 import { SCREEN } from "../config/feel";
 import { ADVANCE, glyph, SUIT_SIZE, SUITS } from "./font";
 
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export function inRect(r: Rect, x: number, y: number): boolean {
+  return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+}
+
 export class Pix {
   k = 1;
   ox = 0;

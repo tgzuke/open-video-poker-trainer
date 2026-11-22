@@ -7,6 +7,7 @@ import type { GameState } from "../game/model";
 import type { Anim } from "./anim";
 import { RANK_TEXT, SUIT_IS_RED, textWidth, wrap } from "./font";
 import { drawStrategyTag } from "./strategyView";
+import type { Rect } from "./pix";
 
 export { wrap };
 import { Pix } from "./pix";
@@ -33,6 +34,25 @@ export interface TrainerView {
 }
 
 const C = LAYOUT.cards;
+
+export type ScreenButton = "stats" | "menu";
+const SCREEN_BUTTONS: [ScreenButton, string][] = [
+  ["stats", "STATS"],
+  ["menu", "MENU"],
+];
+
+/** Click areas of the on-screen STATS and MENU buttons (bottom right). */
+export function screenButtonRects(): [ScreenButton, string, Rect][] {
+  const B = LAYOUT.screenButtons;
+  let right = B.right;
+  const out: [ScreenButton, string, Rect][] = [];
+  for (const [id, label] of [...SCREEN_BUTTONS].reverse()) {
+    const w = textWidth(label) + 6;
+    out.unshift([id, label, { x: right - w, y: B.y, w, h: 11 }]);
+    right -= w + B.gap + 2;
+  }
+  return out;
+}
 
 /** Left edge of card i; in Practice the cards sit left of the feedback box. */
 export function cardX(i: number, mode: Mode = "free"): number {
@@ -177,6 +197,11 @@ export function drawCabinet(p: Pix, v: CabinetView, anim: Anim, now: number) {
   }
   if (mode === "practice") drawFeedback(p, v.trainer.feedback);
   if (v.trainer.tag) drawStrategyTag(p, v.trainer.tag);
+  for (const [, label, r] of screenButtonRects()) {
+    p.rect(r.x - 1, r.y - 1, r.w + 2, r.h + 2, P.frame);
+    p.rect(r.x, r.y, r.w, r.h, P.fieldDark);
+    p.text(label, r.x + 3, r.y + 2, 1, P.payText);
+  }
 
   // Meters.
   const M = LAYOUT.meters;

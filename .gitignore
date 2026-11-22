@@ -8,3 +8,5 @@ app/src/wasm/
 # OS / editor
 .DS_Store
 *.swp
+app/dist-itch
+release/
