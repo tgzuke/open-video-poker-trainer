@@ -38,7 +38,29 @@ function penalty(kind: string, op: string, n: number): string {
   return plural(n, `${kind} penalty card`);
 }
 
+/** The rules written on one strategy line. Several rules may share a line
+ *  ("three of a kind, two pair"); adjacent pat hands stay together as one
+ *  combined rule, as the engine reads them. */
+export function lineRules(line: string): string[] {
+  const out: string[] = [];
+  let pat = false;
+  for (const part of line.trim().split(", ")) {
+    const isPat = PAT_WORDS.includes(part);
+    if (isPat && pat) out[out.length - 1] += `, ${part}`;
+    else out.push(part);
+    pat = isPat;
+  }
+  return out;
+}
+
+/** Player-facing wording of a strategy line: each rule on it, joined by
+ *  " / " when several share the line. */
 export function ruleDisplay(text: string): string {
+  const parts = lineRules(text);
+  return parts.length > 1 ? parts.map(singleRuleDisplay).join(" / ") : singleRuleDisplay(text);
+}
+
+function singleRuleDisplay(text: string): string {
   // Canonical form: PATTERN [w=N] [h=N] [fp..] [sp..] [prefer low]
   const m = /^(.*?)(?: w=(\d+))?(?: h=(\d+))?(?: fp(=|>=)(\d+))?(?: sp(=|>=)(\d+))?( prefer low)?$/.exec(text.trim());
   if (!m) return text;

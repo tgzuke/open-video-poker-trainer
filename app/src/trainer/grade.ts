@@ -40,6 +40,7 @@ function ruleFor(c: DealCheck, hold: number, checking: Checking): string | null 
   const s = c.strategy;
   if (!s) return null;
   if (effectiveChecking(c, checking) === "strategy") return s.ruleText;
+  if (s.describesText) return s.describesText[hold] ?? null;
   const r = s.describes[hold];
   return r === null ? null : (s.matching.find((m) => m.rule === r)?.text ?? null);
 }

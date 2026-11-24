@@ -120,12 +120,13 @@ export interface DealCheck {
   tie: number[]; // holds with equal tie[] have exactly equal EV
   best: number;
   strategy: null | {
-    rule: number | null;
-    ruleText: string | null;
+    rule: number | null; // deciding line (rules joined on one line count once)
+    ruleText: string | null; // the rule on that line that applied
     hold: number;
-    matching: { rule: number; text: string; hold: number }[];
-    describes: (number | null)[]; // first rule describing each hold
-    distance: (number | null)[]; // rule distance per hold; null = off-strategy
+    matching: { rule: number; text: string; hold: number }[]; // lines; text = rule that matched
+    describes: (number | null)[]; // first line describing each hold
+    describesText?: (string | null)[]; // the rule on that line describing each hold
+    distance: (number | null)[]; // rule distance (in lines) per hold; null = off-strategy
   };
 }
 

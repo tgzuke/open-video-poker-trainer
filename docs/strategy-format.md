@@ -16,6 +16,7 @@ and the EV it gives up (credits per hand dealt).
 |---|---|
 | `royal flush`, `straight flush`, `full house`, `flush`, `straight` | the dealt pat hand (all five) |
 | `royal flush, straight flush, four of a kind, full house` | any of several pat hands, on one line (quads: hold the four) |
+| `RULE, RULE, ...` | several rules on one line (see "Merged lines" below) |
 | `four of a kind [RANKS] [kicker RANKS]` | the quads; with `kicker`, also the fifth card if its rank is listed |
 | `three of a kind [RANKS] [kicker RANKS]` | the trips (and a listed kicker) |
 | `two pair` | both pairs |
@@ -66,6 +67,23 @@ hover. Display only: the parser does not accept the plain words.
 | all six pat hands on one line | any pat hand (shorter lists say "quads") |
 | `T` in exact ranks (`KQJT suited`) | 10 (KQJ10 suited) |
 
+### Merged lines
+
+Several rules can share a line, separated by `, ` (comma and space):
+`full house, 4 to a royal` or `flush, straight, three of a kind`. The
+generator joins adjacent rules only when **no hand that reaches the line
+matches two of them**, so they never compete and the line can be read in
+any order: hold whichever one the hand has. A merged line counts as
+**one line** toward a tier's cap.
+
+Play never depends on the grouping. The rules are still tried in the order
+written (left to right, then down), so a hand-written line whose rules do
+overlap still plays the same as writing them one per line. Pat hands next
+to each other on a line read as one combined pat rule.
+
+In the game, a merged line is one step of rule distance, and the feedback
+box and stats name only the rule on the line that applied.
+
 ### When a rule matches several card sets
 
 The rule keeps the **highest ranks** (or lowest, with `prefer low`), then the
@@ -104,11 +122,21 @@ screen show how list B differs from list A, judged on table B:
 
 | Tier | Lines | Qualifiers |
 |---|---|---|
-| Beginner | 15 | none |
-| Intermediate | 30 | `fp` only |
-| Expert | 60 | `fp` and `sp` |
+| Beginner | 20 | none |
+| Intermediate | 25 | `fp` only |
+| Expert | 40 | `fp` and `sp` |
 
-Lines include `discard everything`. Every strategy has a line for each pat
-hand (royal flush … straight), so none leaves a dealt pat hand without a
-rule. The generator still decides where those lines go: for example,
-`4 to a royal` above `flush` breaks a flush for a royal draw.
+Lines include `discard everything`, and a merged line counts once. Every
+strategy has a rule for each pat hand (royal flush … straight), so none
+leaves a dealt pat hand without a rule. The generator still decides where
+those rules go: for example, `4 to a royal` above `flush` breaks a flush
+for a royal draw.
+
+The generator also:
+- **prunes dead rules:** a rule worth less than 0.0000001 credits/hand
+  (`DEAD_RULE`) is dropped, and its line goes to the next best candidate;
+- **guards full houses:** a dealt full house is never broken unless that
+  is an optimal play. In Double Bonus and Double Double Bonus, breaking
+  aces full to hold the three aces is optimal, so `three of a kind A` may
+  sit above `full house` there. A general `three of a kind` or `pair` rule
+  never does.

@@ -121,7 +121,7 @@ pub fn dedup(s: &Strategy) -> Strategy {
             rules.push(*r);
         }
     }
-    Strategy { rules }
+    Strategy::new(rules)
 }
 
 /// The list of changes turning A into B, and the strategy (as indices into
@@ -206,8 +206,9 @@ pub fn edit_steps(a: &Strategy, b: &Strategy) -> (Vec<Rule>, Vec<Change>, Vec<Ve
     (pool, changes, states)
 }
 
-/// Both lists as compared: combined pat-hand lines split into one line per
-/// hand, repeated rules dropped. Play is unchanged; line numbers in a
+/// Both lists as compared: joined lines split into one line per rule,
+/// combined pat-hand lines split into one line per hand, repeated rules
+/// dropped. Play is unchanged; line numbers in a
 /// `Comparison` refer to these lists.
 pub fn normalize(s: &Strategy) -> Strategy {
     dedup(&super::split_pat_lines(s))

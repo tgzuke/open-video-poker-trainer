@@ -14,7 +14,7 @@ pub use rule::{Rule, Strategy};
 pub use trainer::{DealCheck, deal_check};
 
 /// The single-hand rule for one pat-hand bit of `Pattern::Pat`.
-fn single_pat(bit: u32) -> rule::Pattern {
+pub(crate) fn single_pat(bit: u32) -> rule::Pattern {
     use crate::eval::HandKind;
     use rule::{ALL_RANKS, Pattern};
     match bit {
@@ -30,8 +30,9 @@ fn single_pat(bit: u32) -> rule::Pattern {
     }
 }
 
-/// Writes each combined pat-hand line as one line per hand, in the same
-/// place. Play is unchanged: a dealt hand is only one kind of pat hand.
+/// Writes every rule on its own line, and each combined pat-hand rule as one
+/// line per hand, in the same place. Play is unchanged: a dealt hand is only
+/// one kind of pat hand.
 pub fn split_pat_lines(strategy: &Strategy) -> Strategy {
     let mut rules = Vec::with_capacity(strategy.rules.len());
     for r in &strategy.rules {
@@ -47,7 +48,7 @@ pub fn split_pat_lines(strategy: &Strategy) -> Strategy {
             _ => rules.push(*r),
         }
     }
-    Strategy { rules }
+    Strategy::new(rules)
 }
 
 /// Removes pat hands from a combined pat line when an earlier unqualified
@@ -57,12 +58,17 @@ pub fn tidy(strategy: &Strategy) -> Strategy {
     use rule::{ALL_RANKS, Pattern, pat_bit};
     let mut covered = 0u8;
     let mut rules = Vec::with_capacity(strategy.rules.len());
-    for r in &strategy.rules {
+    let mut joined = Vec::with_capacity(strategy.rules.len());
+    // A dropped rule that started its line hands the start to the next one.
+    let mut starts_line = false;
+    for (i, r) in strategy.rules.iter().enumerate() {
         let mut r = *r;
+        let j = strategy.joined.get(i).copied().unwrap_or(false);
         if let Pattern::Pat(m) = r.pattern {
             let left = m & !covered;
             if left == 0 {
-                continue; // nothing reachable: drop the line
+                starts_line |= !j;
+                continue; // nothing reachable: drop the rule
             }
             r.pattern = if left.count_ones() == 1 {
                 single_pat(left.trailing_zeros())
@@ -82,8 +88,10 @@ pub fn tidy(strategy: &Strategy) -> Strategy {
             };
         }
         rules.push(r);
+        joined.push(j && !starts_line && !rules.is_empty() && rules.len() > 1);
+        starts_line = false;
     }
-    Strategy { rules }
+    Strategy { rules, joined }
 }
 
 /// Header metadata for a strategy file.
@@ -95,8 +103,8 @@ pub struct FileMeta<'a> {
     pub tier: Option<&'a Tier>,
 }
 
-/// Strategy file text: metadata and results as `#` comments, one rule per
-/// line with its own numbers as a trailing comment. Parses back unchanged.
+/// Strategy file text: metadata and results as `#` comments, one written
+/// line per line with its own numbers as a trailing comment. Parses back unchanged.
 pub fn render_file(strategy: &Strategy, report: &Report, meta: &FileMeta) -> String {
     let mut s = String::new();
     s.push_str(
@@ -123,17 +131,12 @@ pub fn render_file(strategy: &Strategy, report: &Report, meta: &FileMeta) -> Str
         "# complete: {}\n#\n# per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)\n",
         if report.is_complete() { "yes" } else { "NO" }
     ));
-    let width = strategy
-        .rules
-        .iter()
-        .map(|r| r.to_string().len())
-        .max()
-        .unwrap_or(0)
-        .max(20);
-    for (r, st) in strategy.rules.iter().zip(&report.rules) {
+    let lines = strategy.line_texts();
+    let width = lines.iter().map(|l| l.len()).max().unwrap_or(0).max(20);
+    for (l, st) in lines.iter().zip(&report.rules) {
         s.push_str(&format!(
             "{:<width$}  # fires {:>8.4}%  wrong {:>8.4}%  loss {:.6}\n",
-            r.to_string(),
+            l,
             st.fires * 100.0,
             st.disagrees * 100.0,
             st.loss
@@ -211,7 +214,63 @@ pub fn natural_order(
             break;
         }
     }
-    Strategy {
-        rules: order.into_iter().map(|i| strategy.rules[i]).collect(),
+    Strategy::new(order.into_iter().map(|i| strategy.rules[i]).collect())
+}
+
+/// Rewrites the list with adjacent rules joined on one line wherever no
+/// hand that reaches the line matches two of its rules. Such rules never
+/// compete, so they can be read in any order, and the line counts once
+/// toward a tier's line cap. Play is unchanged (the rules keep their order);
+/// for a fixed order the greedy grouping gives the fewest lines.
+/// "discard everything" always stays on its own line.
+pub fn compact(an: &crate::analysis::Analyzer, strategy: &Strategy) -> Strategy {
+    use features::{RuleHit, apply_rule, high_min, subset_features};
+    let n = strategy.rules.len();
+    let hi = high_min(&an.game);
+    // min_next[d]: the earliest rule after d that also matches a hand d
+    // decides. A line holding d may not reach it.
+    let mut min_next = vec![usize::MAX; n];
+    for cl in &an.classes {
+        let feats = subset_features(&an.game, &cl.cards, hi);
+        let mut decided: Option<usize> = None;
+        for (i, r) in strategy.rules.iter().enumerate() {
+            if let RuleHit::Hold { .. } = apply_rule(r, &feats) {
+                match decided {
+                    None => decided = Some(i),
+                    Some(d) => {
+                        min_next[d] = min_next[d].min(i);
+                        break;
+                    }
+                }
+            }
+        }
     }
+    let mut joined = vec![false; n];
+    let mut limit = 0usize;
+    for i in 0..n {
+        let alone = strategy.rules[i].pattern == rule::Pattern::Nothing;
+        if i > 0 && i < limit && !alone {
+            joined[i] = true;
+            limit = limit.min(min_next[i]);
+        } else {
+            limit = min_next[i];
+        }
+    }
+    // No hand reaching a line matches two of its rules, so they may be
+    // written in any order: pat hands first, as one combined rule.
+    let grouped = Strategy {
+        rules: strategy.rules.clone(),
+        joined,
+    };
+    Strategy::from_lines(
+        grouped
+            .lines()
+            .into_iter()
+            .map(|range| {
+                let mut line = grouped.rules[range].to_vec();
+                line.sort_by_key(|r| rule::pat_mask(r).is_none());
+                rule::merge_pat_runs(line)
+            })
+            .collect(),
+    )
 }

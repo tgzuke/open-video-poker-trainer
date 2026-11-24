@@ -2,24 +2,29 @@
 # game: jacks-or-better
 # paytable: jacks-or-better-7-5
 # bet: 5
-# tier: beginner (max 15 lines)
-# return: 95.911796%  optimal: 96.147209%
-# loss: 0.011771 credits/hand (0.235413 points of return)
+# tier: beginner (max 20 lines)
+# return: 96.129850%  optimal: 96.147209%
+# loss: 0.000868 credits/hand (0.017360 points of return)
 # complete: yes
 #
 # per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
-royal flush, straight flush, four of a kind, full house, flush, straight  # fires   0.7586%  wrong   0.0088%  loss 0.006064
-4 to a royal                                                              # fires   0.0272%  wrong   0.0000%  loss 0.000000
-three of a kind                                                           # fires   2.1128%  wrong   0.0000%  loss 0.000000
-4 to a straight flush                                                     # fires   0.1958%  wrong   0.0000%  loss 0.000000
-two pair                                                                  # fires   4.7539%  wrong   0.0000%  loss 0.000000
-pair J-A                                                                  # fires  12.9846%  wrong   0.0000%  loss 0.000000
-3 to a royal                                                              # fires   1.0911%  wrong   0.0000%  loss 0.000000
-4 to a flush                                                              # fires   3.2902%  wrong   0.0000%  loss 0.000000
-pair                                                                      # fires  28.2187%  wrong   0.0365%  loss 0.000040
-4 to a straight w=2                                                       # fires   2.2717%  wrong   0.0000%  loss 0.000000
-2 high cards suited prefer low                                            # fires   6.8247%  wrong   0.4576%  loss 0.000839
-3 to a straight flush                                                     # fires   2.5284%  wrong   0.6607%  loss 0.002314
-2 high cards prefer low                                                   # fires  15.5458%  wrong   1.0361%  loss 0.001768
-1 high card prefer low                                                    # fires  16.1506%  wrong   0.9401%  loss 0.000745
-discard everything                                                        # fires   3.2459%  wrong   0.0000%  loss 0.000000
+royal flush, straight flush, four of a kind           # fires   0.0255%  wrong   0.0000%  loss 0.000000
+full house, 4 to a royal                              # fires   0.1801%  wrong   0.0000%  loss 0.000000
+flush, straight, three of a kind                      # fires   2.6931%  wrong   0.0000%  loss 0.000000
+4 to a straight flush, two pair                       # fires   4.9497%  wrong   0.0000%  loss 0.000000
+pair J-A                                              # fires  12.9846%  wrong   0.0000%  loss 0.000000
+3 to a royal                                          # fires   1.0911%  wrong   0.0000%  loss 0.000000
+4 to a flush                                          # fires   3.2902%  wrong   0.0000%  loss 0.000000
+pair                                                  # fires  28.2187%  wrong   0.0365%  loss 0.000040
+4 to a straight w=2                                   # fires   2.2717%  wrong   0.0000%  loss 0.000000
+3 to a straight flush h=2, 3 to a straight flush w=3  # fires   0.5014%  wrong   0.0097%  loss 0.000005
+4 to a straight w=1 h=4                               # fires   0.2456%  wrong   0.0000%  loss 0.000000
+2 high cards suited prefer low                        # fires   6.3630%  wrong   0.0028%  loss 0.000003
+3 to a straight flush w=2                             # fires   0.7415%  wrong   0.0305%  loss 0.000009
+4 to a straight w=1 h=3                               # fires   0.4386%  wrong   0.0000%  loss 0.000000
+3 to a straight flush w=1 h=1                         # fires   0.6866%  wrong   0.0462%  loss 0.000014
+2 high cards prefer low                               # fires  15.1671%  wrong   0.5753%  loss 0.000470
+JT suited                                             # fires   0.3398%  wrong   0.0000%  loss 0.000000
+1 high card prefer low                                # fires  16.3053%  wrong   0.6164%  loss 0.000326
+3 to a straight flush                                 # fires   0.2604%  wrong   0.0000%  loss 0.000000
+discard everything                                    # fires   3.2459%  wrong   0.0000%  loss 0.000000

@@ -1,6 +1,6 @@
 // Stats screen (SPEC §5.4): session and lifetime side by side, mouse-driven.
 import { DISTANCE_KEYS, type Agg, type StatsBook } from "../trainer/stats";
-import { ruleDisplay } from "../trainer/ruleText";
+import { lineRules, ruleDisplay } from "../trainer/ruleText";
 
 function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -15,7 +15,8 @@ export function strategyRuleOrder(text: string): string[] {
   return text
     .split("\n")
     .map((l) => l.replace(/#.*/, "").trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .flatMap(lineRules);
 }
 
 function summaryRows(a: Agg): [string, string, string?][] {

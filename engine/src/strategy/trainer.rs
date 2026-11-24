@@ -27,14 +27,20 @@ pub struct DealCheck {
     /// `tie[m]` is the lowest mask whose EV equals hold m's exactly, so two
     /// holds are the same play when their `tie` values are equal.
     pub tie: [u8; 32],
-    /// Deciding rule, or None if the strategy is incomplete for this hand.
+    /// Deciding line (see `Strategy::lines`), or None if the strategy is
+    /// incomplete for this hand.
     pub rule: Option<usize>,
     /// The strategy's hold.
     pub hold: u8,
-    /// Every rule that matches the hand, in rank order, with the hold it
+    /// Every line that matches the hand, in rank order, with the hold it
     /// would choose.
     pub matching: Vec<(usize, u8)>,
-    /// First rule that describes each hold exactly.
+    /// For each entry of `matching`, the rule on that line that matched
+    /// (the first one). `matching_rules[0]` decided the hand.
+    pub matching_rules: Vec<usize>,
+    /// Rule (not line) that first describes each hold exactly.
+    pub describes_rule: [Option<usize>; 32],
+    /// First line that describes each hold exactly.
     pub describes: [Option<usize>; 32],
     /// Rule distance of each hold; None = off-strategy.
     pub distance: [Option<u32>; 32],
@@ -49,10 +55,18 @@ impl DealCheck {
 
 pub fn deal_check(game: &Game, strategy: &Strategy, hand: &[Card; 5], evs: HoldEvs) -> DealCheck {
     let feats = subset_features(game, hand, high_min(game));
-    let mut matching = Vec::new();
+    // Everything here counts written lines: rules joined on one line are one
+    // step of rule distance, and a line matches if any of its rules does
+    // (with the hold of the first that does).
+    let line_of = strategy.line_of();
+    let mut matching: Vec<(usize, u8)> = Vec::new();
+    let mut matching_rules: Vec<usize> = Vec::new();
     for (i, r) in strategy.rules.iter().enumerate() {
         if let RuleHit::Hold { mask, .. } = apply_rule(r, &feats) {
-            matching.push((i, mask));
+            if matching.last().is_none_or(|&(l, _)| l != line_of[i]) {
+                matching.push((line_of[i], mask));
+                matching_rules.push(i);
+            }
         }
     }
     let (rule, hold) = match matching.first() {
@@ -61,8 +75,11 @@ pub fn deal_check(game: &Game, strategy: &Strategy, hand: &[Card; 5], evs: HoldE
     };
 
     let mut describes = [None; 32];
+    let mut describes_rule = [None; 32];
     for f in feats.iter() {
-        describes[f.mask as usize] = strategy.rules.iter().position(|r| rule_matches(r, f));
+        let i = strategy.rules.iter().position(|r| rule_matches(r, f));
+        describes_rule[f.mask as usize] = i;
+        describes[f.mask as usize] = i.map(|i| line_of[i]);
     }
 
     let mut tie = [0u8; 32];
@@ -91,7 +108,9 @@ pub fn deal_check(game: &Game, strategy: &Strategy, hand: &[Card; 5], evs: HoldE
         rule,
         hold,
         matching,
+        matching_rules,
         describes,
+        describes_rule,
         distance,
     }
 }

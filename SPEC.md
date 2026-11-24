@@ -95,9 +95,13 @@ For any strategy and pay table, it reports:
 ### 4.3 Automated generator
 - **Goal:** for a given pay table and bet size, find the strategy with the smallest EV loss against optimal play, within a line cap.
 - **Tiers** (caps are configurable; these are the defaults):
-  - **Beginner:** up to 15 lines, no penalty-card qualifiers
-  - **Intermediate:** up to 30 lines, a limited set of qualifiers
-  - **Expert:** up to 60 lines, any qualifiers
+  - **Beginner:** up to 20 lines, no penalty-card qualifiers
+  - **Intermediate:** up to 25 lines, a limited set of qualifiers
+  - **Expert:** up to 40 lines, any qualifiers
+- **Compaction** (counts toward the caps):
+  - *Merged lines:* adjacent rules that no hand reaching them matches together are written on one line (comma-separated) and count as one line.
+  - *Dead-rule pruning:* a rule worth less than 1e-7 credits/hand is dropped, and its line goes to the next best candidate.
+  - *Full house guardrail:* a dealt full house is never broken unless breaking it is an optimal play (e.g. three aces in Double Bonus), so general trips and pair rules always sit below full house.
 - **Search:** start from a library of candidate rules. Use local search (insert, delete, swap, merge, add or remove qualifiers) scored by the exact evaluator.
 - No human in the loop. The output is the winning list and its numbers, with **no prose explanation**.
 - Must run in the browser, in a worker, for custom pay tables. Preset strategies are generated offline from the command line and shipped with the game.
@@ -130,7 +134,7 @@ A separate screen, outside the game flow, showing how the strategy for pay table
 - **Free Play:** no on-screen feedback. Everything is tracked for stats.
 
 ### 5.3 Rule distance
-For the dealt hand, list **only the rules that match it**, in rank order.
+For the dealt hand, list **only the rules that match it**, in rank order. Rules merged on one line (§4.3) count as one.
 - **Distance** is how far the rule matching the player's hold sits from the rule the strategy chose, counted within that list.
 - If the player's hold matches no applicable rule, it is **off-strategy** and is always red.
 - Yellow is based on this per-hand list, not on adjacency in the printed strategy.

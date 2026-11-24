@@ -199,7 +199,8 @@ fn generator_contract() {
         for (t, g) in TIERS.iter().zip(&gens) {
             let r = strategy::evaluate(&an, &pays, 5, &g.strategy);
             assert!(r.is_complete(), "{}", t.name);
-            assert!(g.strategy.rules.len() <= t.max_lines);
+            assert!(g.strategy.line_count() <= t.max_lines);
+            check_lines(&an, &pays, &g.strategy, t.name);
             assert!(
                 (g.loss - r.loss_credits()).abs() < 1e-9,
                 "{}: {} vs {}",
@@ -216,6 +217,40 @@ fn generator_contract() {
             check_tier_qualifiers(t.name, &g.strategy.rules);
             // Round trip through text.
             assert_eq!(Strategy::parse(&g.strategy.to_text()).unwrap(), g.strategy);
+        }
+    }
+}
+
+/// Merged lines and the full house guardrail, on every hand:
+/// - no hand that reaches a line matches two of its rules, so the rules on
+///   a line never compete and can be read in any order;
+/// - a dealt full house is kept whole unless breaking it is optimal.
+fn check_lines(an: &Analyzer, pays: &[i64], s: &Strategy, what: &str) {
+    let line_of = s.line_of();
+    for cl in &an.classes {
+        let m = strategy::matching_rules(&an.game, s, &cl.cards);
+        let d = m[0].0;
+        let rivals: Vec<usize> = m[1..]
+            .iter()
+            .map(|&(i, _)| i)
+            .filter(|&i| line_of[i] == line_of[d])
+            .collect();
+        assert!(
+            rivals.is_empty(),
+            "{what}: {} matches '{}' and '{}' on one line",
+            an.game.deck().hand_name(&cl.cards),
+            s.rules[d],
+            s.rules[rivals[0]]
+        );
+        if an.game.hand_info(&cl.cards).kind == ovp_engine::eval::HandKind::FullHouse {
+            let hold = m[0].1 as usize;
+            let evs = an.hold_evs(&cl.cards, pays);
+            assert!(
+                hold == 31 || evs.cmp(hold, evs.best()) == std::cmp::Ordering::Equal,
+                "{what}: breaks the full house {} with '{}'",
+                an.game.deck().hand_name(&cl.cards),
+                s.rules[d]
+            );
         }
     }
 }
@@ -253,7 +288,12 @@ fn check_shipped(gid: &str) {
             assert_eq!(header(&text, "paytable"), table.id);
             assert_eq!(header(&text, "game"), gid);
             let s = Strategy::parse(&text).unwrap();
-            assert!(s.rules.len() <= tier.max_lines, "{}", path.display());
+            assert!(s.line_count() <= tier.max_lines, "{}", path.display());
+            assert_eq!(
+                header(&text, "tier"),
+                format!("{} (max {} lines)", tier.name, tier.max_lines)
+            );
+            check_lines(&an, &pays, &s, &path.display().to_string());
             check_tier_qualifiers(tier.name, &s.rules);
             let r = strategy::evaluate(&an, &pays, 5, &s);
             assert!(r.is_complete(), "{} incomplete", path.display());
@@ -263,9 +303,10 @@ fn check_shipped(gid: &str) {
                 let h = rng.hand(an.game.deck());
                 let c = strategy::deal_check(&an.game, &s, &h, an.hold_evs(&h, &pays));
                 let p = strategy::play(&an.game, &s, &h);
-                assert_eq!((c.rule, c.hold), (p.rule, p.hold));
+                assert_eq!((c.rule, c.hold), (p.rule.map(|i| s.line_of()[i]), p.hold));
+                assert_eq!(c.matching_rules[0], p.rule.unwrap());
                 assert_eq!(c.distance[c.hold as usize], Some(0));
-                assert_eq!(c.matching[0].0, p.rule.unwrap());
+                assert_eq!(c.matching[0].0, s.line_of()[p.rule.unwrap()]);
             }
             let ret = format!("{:.6}%", r.ret.to_f64() * 100.0);
             assert!(
@@ -349,15 +390,15 @@ fn tunable_line_cap() {
     let pays = base.pays_for_bet(&table, 5).unwrap();
     let g = verify::reduced_games(&base).into_iter().nth(1).unwrap();
     let an = Analyzer::new(g);
-    let t15 = strategy::tier("beginner").unwrap();
-    let t20 = t15.with_max_lines(20).unwrap();
-    let a = strategy::generate(&an, &pays, &t15, &[]);
-    let b = strategy::generate(&an, &pays, &t20, &[&a.strategy]);
-    assert!(b.strategy.rules.len() <= 20);
+    let t20 = strategy::tier("beginner").unwrap();
+    let t25 = t20.with_max_lines(25).unwrap();
+    let a = strategy::generate(&an, &pays, &t20, &[]);
+    let b = strategy::generate(&an, &pays, &t25, &[&a.strategy]);
+    assert!(b.strategy.line_count() <= 25);
     check_tier_qualifiers("beginner", &b.strategy.rules);
     assert!(b.loss <= a.loss + 1e-12);
     assert!(strategy::evaluate(&an, &pays, 5, &b.strategy).is_complete());
-    assert!(t15.with_max_lines(2).is_err() && t15.with_max_lines(201).is_err());
+    assert!(t20.with_max_lines(2).is_err() && t20.with_max_lines(201).is_err());
 }
 
 /// Reading order never changes play, and on the shipped DDB 8/5 beginner
@@ -448,4 +489,64 @@ fn seeds_bound_the_result() {
     assert!((loss(&g.strategy) - g.loss).abs() < 1e-9);
     assert!(g.loss <= loss(&simple) + 1e-12);
     assert!(g.loss <= loss(&other) + 1e-12);
+}
+
+/// Merging never changes play: the shipped lists, written one rule per line,
+/// play every hand the same way, and joining puts rules on fewer lines.
+#[test]
+fn merged_lines_keep_play() {
+    let an = Analyzer::new(builtin_game("double-bonus").unwrap());
+    let table = builtin_paytable("double-bonus-9-6").unwrap();
+    let pays = an.game.pays_for_bet(&table, 5).unwrap();
+    for tier in TIERS {
+        let path = format!(
+            "{}/../strategies/double-bonus-9-6/{}.txt",
+            env!("CARGO_MANIFEST_DIR"),
+            tier.name
+        );
+        let s = Strategy::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let flat = strategy::split_pat_lines(&s);
+        assert!(flat.line_count() > s.line_count(), "{}: nothing merged", tier.name);
+        let a = strategy::evaluate(&an, &pays, 5, &s);
+        let b = strategy::evaluate(&an, &pays, 5, &flat);
+        assert_eq!(a.holds, b.holds);
+        assert_eq!(a.ret, b.ret);
+        // Compacting the flat list again finds no more lines than shipped.
+        let again = strategy::compact(&an, &flat);
+        assert!(again.line_count() <= s.line_count());
+        assert_eq!(strategy::evaluate(&an, &pays, 5, &again).holds, a.holds);
+    }
+}
+
+/// Dead-rule pruning: in the shipped JoB 9/6 lists every rule is worth at
+/// least DEAD_RULE credits/hand (pat-hand rules, which every list keeps,
+/// are exempt).
+#[test]
+fn shipped_lists_have_no_dead_rules() {
+    let (an, pays) = job();
+    for tier in TIERS {
+        let path = format!(
+            "{}/../strategies/jacks-or-better-9-6/{}.txt",
+            env!("CARGO_MANIFEST_DIR"),
+            tier.name
+        );
+        let s = Strategy::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let base = strategy::evaluate(&an, &pays, 5, &s).loss_credits();
+        for (i, r) in s.rules.iter().enumerate() {
+            let pat = matches!(r.pattern, Pattern::Pat(_) | Pattern::Made(_) | Pattern::Nothing)
+                || r.pattern == (Pattern::Quads { ranks: ALL_RANKS, kicker: None });
+            if pat {
+                continue;
+            }
+            let mut rules = s.rules.clone();
+            rules.remove(i);
+            let without = strategy::evaluate(&an, &pays, 5, &Strategy::new(rules)).loss_credits();
+            assert!(
+                without - base >= strategy::generate::DEAD_RULE * 0.999,
+                "{} '{r}' is worth only {:.2e}",
+                tier.name,
+                without - base
+            );
+        }
+    }
 }

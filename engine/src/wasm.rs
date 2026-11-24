@@ -252,6 +252,8 @@ impl Engine {
             );
         };
         let c = strategy::deal_check(game, strat, &hand, evs);
+        // Indices are written lines; texts name the single rule on the line
+        // that applies (shorter, and what the player should have used).
         let text = |i: usize| strat.rules[i].to_string();
         Ok(serde_json::json!({
             "evs": ev_list,
@@ -259,10 +261,11 @@ impl Engine {
             "best": c.best,
             "strategy": {
                 "rule": c.rule,
-                "ruleText": c.rule.map(text),
+                "ruleText": c.matching_rules.first().map(|&i| text(i)),
                 "hold": c.hold,
-                "matching": c.matching.iter().map(|&(i, m)| serde_json::json!({ "rule": i, "text": text(i), "hold": m })).collect::<Vec<_>>(),
+                "matching": c.matching.iter().zip(&c.matching_rules).map(|(&(l, m), &i)| serde_json::json!({ "rule": l, "text": text(i), "hold": m })).collect::<Vec<_>>(),
                 "describes": c.describes,
+                "describesText": c.describes_rule.map(|r| r.map(text)),
                 "distance": c.distance,
             }
         })
@@ -319,8 +322,8 @@ impl Engine {
         .to_string())
     }
 
-    /// How a strategy plays a hand, as JSON: deciding rule (0-based or
-    /// null), hold mask, and every matching rule with its hold, in order.
+    /// How a strategy plays a hand, as JSON: deciding line (0-based or
+    /// null), hold mask, and every matching line with its hold, in order.
     #[wasm_bindgen(js_name = playStrategy)]
     pub fn play_strategy(&self, text: &str, cards: &[u8]) -> Result<String, JsError> {
         let strat = Strategy::parse(text).map_err(js)?;
@@ -328,11 +331,16 @@ impl Engine {
         validate_hand(game.deck(), cards).map_err(js)?;
         let hand = [cards[0], cards[1], cards[2], cards[3], cards[4]];
         let p = strategy::play(game, &strat, &hand);
+        // Lines, not rules: a joined line is one entry (its first match).
+        let line_of = strat.line_of();
+        let mut seen = std::collections::HashSet::new();
         let matching: Vec<serde_json::Value> = strategy::matching_rules(game, &strat, &hand)
             .into_iter()
-            .map(|(i, m)| serde_json::json!({ "rule": i, "hold": m }))
+            .filter(|&(i, _)| seen.insert(line_of[i]))
+            .map(|(i, m)| serde_json::json!({ "rule": line_of[i], "hold": m }))
             .collect();
-        Ok(serde_json::json!({ "rule": p.rule, "hold": p.hold, "matching": matching }).to_string())
+        let rule = p.rule.map(|i| line_of[i]);
+        Ok(serde_json::json!({ "rule": rule, "hold": p.hold, "matching": matching }).to_string())
     }
 }
 
@@ -350,8 +358,8 @@ fn report_json(strat: &Strategy, r: &strategy::Report) -> serde_json::Value {
         "worst": r.worst.iter().take(10).map(|(l, hand, rule, hold, best)| serde_json::json!({
             "loss": l, "hand": hand, "rule": rule, "hold": hold, "best": best,
         })).collect::<Vec<_>>(),
-        "rules": strat.rules.iter().zip(&r.rules).map(|(rule, st)| serde_json::json!({
-            "text": rule.to_string(),
+        "rules": strat.line_texts().into_iter().zip(&r.rules).map(|(text, st)| serde_json::json!({
+            "text": text,
             "fires": st.fires,
             "disagrees": st.disagrees,
             "loss": st.loss,
@@ -359,7 +367,8 @@ fn report_json(strat: &Strategy, r: &strategy::Report) -> serde_json::Value {
     })
 }
 
-/// Checks one strategy line: its canonical text, or an error. Comments and
+/// Checks one strategy line (one rule, or several joined with ", "): its
+/// canonical text, or an error. Comments and
 /// blank lines are not rules.
 #[wasm_bindgen(js_name = parseRule)]
 pub fn parse_rule(text: &str) -> Result<String, JsError> {
@@ -367,8 +376,14 @@ pub fn parse_rule(text: &str) -> Result<String, JsError> {
     if body.is_empty() {
         return Err(js("empty rule".into()));
     }
-    body.parse::<strategy::Rule>()
-        .map(|r| r.to_string())
+    strategy::rule::parse_line(body)
+        .map(|rules| {
+            rules
+                .iter()
+                .map(|r| r.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
         .map_err(js)
 }
 

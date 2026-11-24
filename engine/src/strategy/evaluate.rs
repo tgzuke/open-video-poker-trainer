@@ -75,6 +75,7 @@ pub struct RuleStats {
 #[derive(Clone, Debug)]
 pub struct Problem {
     pub hand: String,
+    /// Written line that decided (see `Strategy::lines`).
     pub rule: Option<usize>,
     /// Weight (deals) of the hand's suit class.
     pub weight: u32,
@@ -85,6 +86,7 @@ pub struct Report {
     pub ret: Ratio,
     pub optimal: Ratio,
     pub bet: u32,
+    /// Stats per written line (a joined line sums its rules).
     pub rules: Vec<RuleStats>,
     /// Hands no rule matches.
     pub undefined: Vec<Problem>,
@@ -92,7 +94,7 @@ pub struct Report {
     pub ambiguous: Vec<Problem>,
     /// Chosen hold per class (for exact cross-checks).
     pub holds: Vec<u8>,
-    /// Costliest misplays: (credits/hand lost, hand, rule index, strategy
+    /// Costliest misplays: (credits/hand lost, hand, line index, strategy
     /// hold, optimal hold), worst first, at most 25.
     pub worst: Vec<(f64, String, usize, u8, u8)>,
 }
@@ -115,14 +117,16 @@ pub fn evaluate(an: &Analyzer, pays: &[i64], bet: u32, strategy: &Strategy) -> R
     let game = &an.game;
     let hi = high_min(game);
     let deals: f64 = an.classes.iter().map(|c| c.weight as f64).sum();
-    let mut rules = vec![RuleStats::default(); strategy.rules.len()];
+    let line_of = strategy.line_of();
+    let mut rules = vec![RuleStats::default(); strategy.line_count()];
     let mut holds = Vec::with_capacity(an.classes.len());
     let (mut undefined, mut ambiguous) = (vec![], vec![]);
     let mut worst: Vec<(f64, usize, usize, u8, u8)> = vec![];
     let (res, opt) = an.policy_and_optimal(pays, bet, |ci, cl, evs| {
         let best = evs.best();
         let feats = subset_features(game, &cl.cards, hi);
-        let p = play_features(strategy, &feats);
+        let mut p = play_features(strategy, &feats);
+        p.rule = p.rule.map(|i| line_of[i]);
         let problem = || Problem {
             hand: game.deck().hand_name(&cl.cards),
             rule: p.rule,

@@ -22,9 +22,7 @@ fn setup(table: &str) -> (Analyzer, Vec<i64>) {
 }
 
 fn strategy_of(pool: &[ovp_engine::strategy::Rule], state: &[usize]) -> Strategy {
-    Strategy {
-        rules: state.iter().map(|&k| pool[k]).collect(),
-    }
+    Strategy::new(state.iter().map(|&k| pool[k]).collect())
 }
 
 /// Every step list ends at B, every intermediate list is a valid strategy,
@@ -72,7 +70,7 @@ fn edit_steps_always_reach_b() {
         .filter(|r| r.pattern != Pattern::Nothing)
         .collect();
     pool.dedup();
-    let pool = normalize(&Strategy { rules: pool }).rules;
+    let pool = normalize(&Strategy::new(pool)).rules;
     let discard = Strategy::parse("discard everything").unwrap().rules[0];
     let mut seed = 0x9e3779b97f4a7c15u64;
     let mut rnd = |n: usize| {
@@ -88,7 +86,7 @@ fn edit_steps_always_reach_b() {
         }
         v.truncate(rnd(pool.len()));
         v.push(discard);
-        Strategy { rules: v }
+        Strategy::new(v)
     };
     for _ in 0..500 {
         let a = random_list(&mut rnd);

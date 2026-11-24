@@ -47,7 +47,7 @@ describe("deal check and grading", () => {
   it("strategy mode: green / yellow (next rule) / red / off-strategy", () => {
     const { c } = check(H);
     const s = c.strategy!;
-    expect(s.ruleText).toBe("pair");
+    expect(s.ruleText).toBe("pair 2-T");
     expect(s.hold).toBe(mask(H, "7c 7d"));
     const g = (held: string) => gradeHold(c, held ? mask(H, held) : 0, "strategy", 0);
     expect(g("7c 7d")).toMatchObject({ correct: true, color: "green", distance: 0, cost: 0 });
@@ -57,7 +57,7 @@ describe("deal check and grading", () => {
     expect(g("7c 7d Ah")).toMatchObject({ color: "red", distance: null });
     expect(g("")).toMatchObject({ color: "red" }); // discard everything: last matching rule
     // Distances are positions in the per-hand list, not in the printed strategy.
-    expect(s.matching.map((m) => m.text)).toEqual(["pair", "2 high cards suited prefer low", "2 high cards prefer low", "1 high card prefer low", "discard everything"]);
+    expect(s.matching.map((m) => m.text)).toEqual(["pair 2-T", "2 high cards suited prefer low", "2 high cards prefer low", "1 high card prefer low", "discard everything"]);
   });
 
   it("pure EV: right within the grace margin, scaled with bet", () => {
@@ -123,7 +123,7 @@ describe("trainer flow", () => {
     expect(t.gate(held("Ah Kh"))).toBe("block");
     expect(t.lesson).toEqual({ message: "NOT THE BEST HOLD - TRY AGAIN", hint: null });
     expect(t.gate(held("Ah"))).toBe("block");
-    expect(t.lesson?.message).toBe("USE: PAIR");
+    expect(t.lesson?.message).toBe("USE: PAIR, 10 OR LOWER");
     expect(t.gate(held(""))).toBe("block");
     expect(t.lesson).toEqual({ message: "HOLD THE MARKED CARDS", hint: c.strategy!.hold });
     expect(t.gate(held("Ah Kh"))).toBe("block");
@@ -151,7 +151,7 @@ describe("trainer flow", () => {
     expect(recs).toHaveLength(0);
     await arrive();
     expect(recs).toHaveLength(1);
-    expect(t.feedback).toMatchObject({ color: "yellow", title: "CLOSE", rule: "pair" });
+    expect(t.feedback).toMatchObject({ color: "yellow", title: "CLOSE", rule: "pair 2-T" });
     expect(t.feedback!.cost).toBeGreaterThan(0);
   });
 
@@ -227,7 +227,7 @@ describe("stats", () => {
     expect(a.results).toEqual({ "No win": 2, "Two Pair": 1 });
     expect(a.deviations).toBe(2);
     expect(a.distance).toMatchObject({ "0": 1, "1": 1, off: 1 });
-    expect(a.rules.s.pair).toEqual({ opportunities: 3, misses: 2 });
+    expect(a.rules.s["pair 2-T"]).toEqual({ opportunities: 3, misses: 2 });
     const best = c.evs[c.best];
     expect(a.lossVsOptimal).toBeCloseTo(3 * best - ev("7c 7d") - ev("Ah Kh") - ev("7c 7d Ah"), 12);
     expect(a.strategyLoss).toBeCloseTo(3 * (best - c.evs[s.hold]), 12);

@@ -1,7 +1,7 @@
 // Player-facing rule wording (display only; files keep the notation).
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { rankSet, ruleDisplay } from "../src/trainer/ruleText";
+import { lineRules, rankSet, ruleDisplay } from "../src/trainer/ruleText";
 import { FEEDBACK_CHARS, FEEDBACK_RULE_LINES, wrap } from "../src/render/cabinet";
 import { LESSON_TEXT } from "../src/config/trainer";
 import { strategyRuleOrder } from "../src/ui/statsView";
@@ -42,11 +42,15 @@ describe("rule wording", () => {
       ["royal flush, straight flush, four of a kind, full house, flush, straight", "any pat hand"],
       ["four of a kind", "four of a kind"],
       ["discard everything", "discard everything"],
+      ["full house, 4 to a royal", "full house / 4 to a royal"],
+      ["flush, straight, three of a kind", "flush, straight / three of a kind"],
+      ["three of a kind A kicker 2-4, two pair", "three aces, kicker 2-4 / two pair"],
     ];
     for (const [file, shown] of cases) expect(ruleDisplay(file), file).toBe(shown);
     expect(rankSet("5-K")).toBe("5-K");
     expect(rankSet("J-A")).toBe("J-A");
     expect(rankSet("J-A", true)).toBe("J or better");
+    expect(lineRules("royal flush, straight flush, two pair, 4 to a flush")).toEqual(["royal flush, straight flush", "two pair", "4 to a flush"]);
   });
 
   it("leaves no notation codes in any shipped rule, and every rule fits on screen", () => {

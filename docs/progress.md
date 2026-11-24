@@ -631,3 +631,69 @@ their own table by another table's list at the same level (for example BP
 - Whether the compare screen's two views (rule changes, hands played
   differently) read well; which one should come first.
 - Naming: "My strategy" (menu) / "MY STRATEGY" (tag and tab).
+
+## Strategy compaction and new tier caps (owner request, 2026-11-24)
+
+### What changed
+- **Merged lines.** Adjacent rules that no hand reaching them matches
+  together are written on one line, comma-separated (`full house, 4 to a
+  royal`, `flush, straight, three of a kind`), and count as one line
+  toward the cap. Play never depends on the grouping: rules are still
+  tried in written order. The generator's fit loop counts merged lines;
+  when merging frees lines, it raises its rule cap and fills them with the
+  best remaining candidates.
+- **Dead-rule pruning.** A rule worth less than 1e-7 credits/hand
+  (`DEAD_RULE`) is dropped and never added, and its line goes to the next
+  best candidate. That's why most Expert lists stop well short of 40.
+- **Full house guardrail.** A dealt full house is never broken unless that
+  is an optimal play. Owner's decision: in DB/DDB, `three of a kind A` may
+  still sit above `full house` (breaking aces full is optimal there; forcing
+  it below cost DB 9/6 expert 0.000035 → 0.000619). General trips and pair
+  rules never sit above it. The old DDB beginner lists broke every full
+  house this way.
+- **Caps:** Beginner 20, Intermediate 25, Expert 40 lines (were 15/30/60).
+- **Trainer:** rule distance counts lines (a merged line is one step). The
+  feedback box, lesson hint and stats name the single rule that applied.
+  The strategy screen joins a line's rules with " / " (the pixel font has
+  no semicolon).
+- **Editor:** a line may hold several rules. The suggestion list and
+  compare screen work as before; compare splits merged lines first.
+
+### Results (loss, credits/hand at max bet; lines before → after)
+| Table, level | Before | After |
+|---|---|---|
+| JoB 9/6 beginner | 0.010737 (15) | 0.001015 (20) |
+| JoB 9/6 intermediate | 0.000062 (30) | 0.000025 (24) |
+| JoB 9/6 expert | 0.000001 (59) | 0.000001 (29) |
+| BP 8/5 beginner | 0.011755 (15) | 0.000705 (20) |
+| DB 9/6 beginner | 0.022223 (15) | 0.004269 (20) |
+| DB 9/6 expert | 0.000035 (60) | 0.000035 (36) |
+| DDB 9/6 beginner | 0.034087 (15) | 0.004066 (20) |
+| DDB 9/6 intermediate | 0.001717 (30) | 0.000773 (25) |
+
+All 60 lists: beginner losses fell 5–15×; intermediate equal or better
+except DB 9/6/4 (0.001036 → 0.001199, 30 → 24 lines); expert lists are
+29–40 lines (were 56–60) with equal loss, except DB 9/6/4 expert (0.000061 →
+0.000082 at 33 lines) and DB 9/7, DB 10/7 (slightly better).
+
+### Verified
+- New tests: every shipped list respects its line cap; no hand reaching a
+  merged line matches two of its rules; no dealt full house is broken
+  unless optimal; merged and one-rule-per-line lists play every hand the
+  same; JoB 9/6 lists have no rule worth under 1e-7; merged lines round-
+  trip through text. Existing sibling/tier/seed tests pass unchanged.
+- Rust: all suites pass. App: 64 tests pass (expectations updated where
+  the JoB 9/6 beginner list itself changed, e.g. `pair` is now `pair 2-T`).
+- Checked in Chrome: strategy screen (beginner, expert), a dealt hand's
+  feedback, no console errors.
+- Full `generate --all`: about 2 h 40 min (was ~41 min). The fit loop
+  re-runs the local search several times per list.
+
+### Open questions
+- Some expert lines get long (JoB 9/6 expert line 12 holds five
+  3-to-a-straight-flush variants). A per-line rule limit is easy to add if
+  that reads badly.
+- Generating in the browser editor is slower for the same reason as above.
+
+### For playtesting
+- The " / " separator on the strategy screen; long merged lines on Expert.

@@ -461,8 +461,11 @@ fn repair_all(dir: &str, tables: &[PayTable]) -> Result<(), String> {
                     if k > 0 {
                         rivals.extend(read(&table.id, strategy::TIERS[k - 1].name));
                     }
+                    // Differences under DEAD_RULE are what pruning gives up.
                     let beats = rivals.iter().any(|r| {
-                        strategy::evaluate(&an, &pays, w.bet, r).loss_credits() < own_loss - 1e-9
+                        r.line_count() <= tier.max_lines
+                            && strategy::evaluate(&an, &pays, w.bet, r).loss_credits()
+                                < own_loss - strategy::generate::DEAD_RULE
                     });
                     if !beats {
                         continue;
@@ -472,7 +475,11 @@ fn repair_all(dir: &str, tables: &[PayTable]) -> Result<(), String> {
                     let g = strategy::generate(&an, &pays, tier, &seeds);
                     let (text, rep) = check_and_render(&an, table, w, tier, &pays, &g)?;
                     if rep.loss_credits() > own_loss - 1e-12 {
-                        return Err(format!("{} {}: repair did not improve", table.id, tier.name));
+                        println!(
+                            "repair {round}: {} {}: no improvement found (rival differs by pruned rules); kept",
+                            table.id, tier.name
+                        );
+                        continue;
                     }
                     let path = format!("{dir}/{}/{}.txt", table.id, tier.name);
                     std::fs::write(&path, &text).map_err(|e| format!("{path}: {e}"))?;
@@ -746,7 +753,7 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
                 let pays = game.pays_for_bet(&table, bet)?;
                 let an = Analyzer::new(game);
                 let old = Strategy::parse(&text)?;
-                let new = strategy::natural_order(&an, &pays, &strategy::tidy(&old));
+                let new = strategy::compact(&an, &strategy::natural_order(&an, &pays, &strategy::tidy(&old)));
                 let r_old = strategy::evaluate(&an, &pays, bet, &old);
                 let r_new = strategy::evaluate(&an, &pays, bet, &new);
                 if r_old.ret != r_new.ret || r_old.holds != r_new.holds || !r_new.is_complete() {
@@ -763,8 +770,8 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
                     .map_err(|e| format!("{file}: {e}"))?;
                 println!(
                     "{file}: {} -> {} lines, play unchanged",
-                    old.rules.len(),
-                    new.rules.len()
+                    old.line_count(),
+                    new.line_count()
                 );
             }
             Ok(true)

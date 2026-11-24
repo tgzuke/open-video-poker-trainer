@@ -512,38 +512,179 @@ impl std::str::FromStr for Rule {
 }
 
 /// A ranked hold list. The last rule must be "discard everything".
+///
+/// Rules are played in order: the first rule that matches decides. Several
+/// adjacent rules may share one written line ("three of a kind, two pair");
+/// `joined[i]` says rule i is on the same line as rule i-1. Play never
+/// depends on the grouping (the order of the rules is still the order of
+/// the list); the generator only joins rules that no hand reaching the line
+/// matches together, so the rules on a line can be read in any order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Strategy {
     pub rules: Vec<Rule>,
+    pub joined: Vec<bool>,
+}
+
+/// Is this rule one of the pat hands a combined `Pattern::Pat` line can hold?
+pub(crate) fn pat_mask(r: &Rule) -> Option<u8> {
+    if r.has_qualifier() || r.prefer_low {
+        return None;
+    }
+    match r.pattern {
+        Pattern::Pat(m) => Some(m),
+        Pattern::Made(k) => pat_bit(k).map(|b| 1 << b),
+        Pattern::Quads {
+            ranks: ALL_RANKS,
+            kicker: None,
+        } => Some(1 << 2),
+        _ => None,
+    }
+}
+
+/// Parses one written line: a single rule, or several joined with ", ".
+/// Consecutive pat hands on a line become one combined pat rule, so a line
+/// always parses to the same rules it was written from.
+pub fn parse_line(body: &str) -> Result<Vec<Rule>, String> {
+    let body = body.trim();
+    // A line of pat hands only is the classic combined pat line.
+    if let Ok(r) = body.parse::<Rule>() {
+        return Ok(vec![r]);
+    }
+    if !body.contains(", ") {
+        return body.parse::<Rule>().map(|r| vec![r]);
+    }
+    let mut out: Vec<Rule> = Vec::new();
+    let mut seen: Vec<Rule> = Vec::new();
+    for part in body.split(", ") {
+        let r: Rule = part.parse()?;
+        if r.pattern == Pattern::Nothing {
+            return Err("'discard everything' must be on a line of its own".into());
+        }
+        if seen.contains(&r) {
+            return Err(format!("'{part}' is repeated in '{body}'"));
+        }
+        seen.push(r);
+        out.push(r);
+    }
+    Ok(merge_pat_runs(out))
+}
+
+/// Joins runs of adjacent pat-hand rules into one combined pat rule.
+pub(crate) fn merge_pat_runs(rules: Vec<Rule>) -> Vec<Rule> {
+    let mut out: Vec<Rule> = Vec::new();
+    for r in rules {
+        if let (Some(m), Some(last)) = (pat_mask(&r), out.last_mut()) {
+            if let Some(lm) = pat_mask(last) {
+                if lm & m == 0 {
+                    last.pattern = Pattern::Pat(lm | m);
+                    continue;
+                }
+            }
+        }
+        out.push(r);
+    }
+    // A combined line of one hand is that hand's own rule.
+    for r in &mut out {
+        if let Pattern::Pat(m) = r.pattern {
+            if m.count_ones() == 1 {
+                r.pattern = super::single_pat(m.trailing_zeros());
+            }
+        }
+    }
+    out
 }
 
 impl Strategy {
-    pub fn parse(text: &str) -> Result<Strategy, String> {
+    /// One rule per line.
+    pub fn new(rules: Vec<Rule>) -> Strategy {
+        let joined = vec![false; rules.len()];
+        Strategy { rules, joined }
+    }
+
+    /// Rules with explicit line breaks: each inner list is one line.
+    pub fn from_lines(lines: Vec<Vec<Rule>>) -> Strategy {
         let mut rules = Vec::new();
+        let mut joined = Vec::new();
+        for line in lines {
+            for (k, r) in line.into_iter().enumerate() {
+                rules.push(r);
+                joined.push(k > 0);
+            }
+        }
+        Strategy { rules, joined }
+    }
+
+    pub fn parse(text: &str) -> Result<Strategy, String> {
+        let mut lines = Vec::new();
         for (i, line) in text.lines().enumerate() {
             let body = line.split('#').next().unwrap().trim();
             if body.is_empty() {
                 continue;
             }
-            rules.push(
-                body.parse::<Rule>()
-                    .map_err(|e| format!("line {}: {e}", i + 1))?,
-            );
+            lines.push(parse_line(body).map_err(|e| format!("line {}: {e}", i + 1))?);
         }
-        if rules.last().map(|r| r.pattern) != Some(Pattern::Nothing) {
+        let s = Strategy::from_lines(lines);
+        if s.rules.last().map(|r| r.pattern) != Some(Pattern::Nothing) {
             return Err("the last rule must be 'discard everything'".into());
         }
-        if rules[..rules.len() - 1]
+        if s.rules[..s.rules.len() - 1]
             .iter()
             .any(|r| r.pattern == Pattern::Nothing)
         {
             return Err("'discard everything' may only be the last rule".into());
         }
-        Ok(Strategy { rules })
+        Ok(s)
+    }
+
+    /// The same rules, one per line.
+    pub fn flat(&self) -> Strategy {
+        Strategy::new(self.rules.clone())
+    }
+
+    /// Rule index ranges of the written lines, in order.
+    pub fn lines(&self) -> Vec<std::ops::Range<usize>> {
+        let mut out: Vec<std::ops::Range<usize>> = Vec::new();
+        for i in 0..self.rules.len() {
+            match out.last_mut() {
+                Some(l) if self.joined.get(i).copied().unwrap_or(false) => l.end = i + 1,
+                _ => out.push(i..i + 1),
+            }
+        }
+        out
+    }
+
+    /// Number of written lines (what a tier's line cap counts).
+    pub fn line_count(&self) -> usize {
+        self.lines().len()
+    }
+
+    /// Line index of each rule.
+    pub fn line_of(&self) -> Vec<usize> {
+        let mut v = vec![0; self.rules.len()];
+        for (l, range) in self.lines().into_iter().enumerate() {
+            for i in range {
+                v[i] = l;
+            }
+        }
+        v
+    }
+
+    /// Text of each written line.
+    pub fn line_texts(&self) -> Vec<String> {
+        self.lines()
+            .into_iter()
+            .map(|r| {
+                self.rules[r]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .collect()
     }
 
     pub fn to_text(&self) -> String {
-        self.rules.iter().map(|r| format!("{r}\n")).collect()
+        self.line_texts().into_iter().map(|l| l + "\n").collect()
     }
 }
 
@@ -580,6 +721,24 @@ discard everything
     }
 
     #[test]
+    fn joined_lines_round_trip() {
+        let text = "\
+royal flush, straight flush, four of a kind, full house
+three of a kind A kicker 2-4, 4 to a royal, two pair
+flush, straight, three of a kind
+pair J-A
+discard everything
+";
+        let s = Strategy::parse(text).unwrap();
+        assert_eq!(s.to_text(), text);
+        assert_eq!(s.line_count(), 5);
+        // Pat hands next to each other on a line form one combined rule.
+        assert_eq!(s.rules.len(), 8);
+        assert_eq!(s.line_of(), vec![0, 1, 1, 1, 2, 2, 3, 4]);
+        assert_eq!(s.flat().line_count(), 8);
+    }
+
+    #[test]
     fn rank_sets() {
         assert_eq!(format_ranks(parse_ranks("A,2-4").unwrap()), "A,2-4");
         assert_eq!(format_ranks(parse_ranks("J-A").unwrap()), "J-A");
@@ -600,7 +759,8 @@ discard everything
             "flush w=2",
             "3 to a donut",
             "flush, flush",
-            "flush, pair",
+            "pair, two pair, pair",
+            "two pair, discard everything",
             "royal flush\ndiscard everything\nflush",
         ] {
             assert!(

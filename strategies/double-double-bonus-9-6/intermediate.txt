@@ -2,39 +2,34 @@
 # game: double-double-bonus
 # paytable: double-double-bonus-9-6
 # bet: 5
-# tier: intermediate (max 30 lines)
-# return: 98.946437%  optimal: 98.980783%
-# loss: 0.001717 credits/hand (0.034347 points of return)
+# tier: intermediate (max 25 lines)
+# return: 98.965332%  optimal: 98.980783%
+# loss: 0.000773 credits/hand (0.015452 points of return)
 # complete: yes
 #
 # per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
-four of a kind A kicker 2-4                              # fires   0.0005%  wrong   0.0000%  loss 0.000000
-four of a kind 2-4 kicker A,2-4                          # fires   0.0014%  wrong   0.0000%  loss 0.000000
-three of a kind A                                        # fires   0.1736%  wrong   0.0000%  loss 0.000000
-royal flush, straight flush, four of a kind, full house  # fires   0.1567%  wrong   0.0000%  loss 0.000000
-4 to a royal                                             # fires   0.0360%  wrong   0.0000%  loss 0.000000
-three of a kind                                          # fires   1.9503%  wrong   0.0000%  loss 0.000000
-flush, straight                                          # fires   0.5802%  wrong   0.0000%  loss 0.000000
-4 to a straight flush fp=0                               # fires   0.1958%  wrong   0.0000%  loss 0.000000
-pair A                                                   # fires   3.9782%  wrong   0.0000%  loss 0.000000
-two pair                                                 # fires   4.0225%  wrong   0.0000%  loss 0.000000
-pair J-A                                                 # fires   9.7377%  wrong   0.0568%  loss 0.000050
-3 to a royal                                             # fires   1.0911%  wrong   0.1219%  loss 0.000113
-4 to a flush                                             # fires   3.2902%  wrong   0.0000%  loss 0.000000
-pair                                                     # fires  28.2187%  wrong   0.0794%  loss 0.000193
-4 to a straight w=2                                      # fires   2.2717%  wrong   0.0000%  loss 0.000000
-3 to a straight flush h=2 fp=0                           # fires   0.2299%  wrong   0.0000%  loss 0.000000
-3 to a straight flush w=3 fp=0                           # fires   0.2715%  wrong   0.0000%  loss 0.000000
-4 to a straight w=1 h=4                                  # fires   0.2456%  wrong   0.0000%  loss 0.000000
-2 high cards suited prefer low                           # fires   6.3630%  wrong   0.1053%  loss 0.000035
-3 to a straight flush w=2 fp=0                           # fires   0.7415%  wrong   0.0000%  loss 0.000000
-4 to a straight w=1 h=3                                  # fires   0.4386%  wrong   0.0000%  loss 0.000000
-3 to a straight flush h=1 fp=0                           # fires   0.6866%  wrong   0.0000%  loss 0.000000
-3 to a straight w=2 h=3                                  # fires   0.3094%  wrong   0.0000%  loss 0.000000
-4 to a straight w=1 h=2                                  # fires   0.6427%  wrong   0.0000%  loss 0.000000
-A                                                        # fires  12.2177%  wrong   0.3920%  loss 0.000144
-2 high cards prefer low                                  # fires   6.1446%  wrong   0.0873%  loss 0.000049
-1 high card                                              # fires  12.4979%  wrong   1.1571%  loss 0.001133
-3 to a straight flush fp=0                               # fires   0.2604%  wrong   0.0000%  loss 0.000000
-4 to a straight w=1 h=0                                  # fires   1.2139%  wrong   0.0000%  loss 0.000000
-discard everything                                       # fires   2.0320%  wrong   0.0000%  loss 0.000000
+royal flush, straight flush, four of a kind A kicker 2-4, four of a kind 2-4 kicker A,2-4  # fires   0.0034%  wrong   0.0000%  loss 0.000000
+four of a kind, 4 to a royal                                                               # fires   0.0582%  wrong   0.0000%  loss 0.000000
+flush, straight, three of a kind A                                                         # fires   0.7538%  wrong   0.0000%  loss 0.000000
+full house, 4 to a straight flush                                                          # fires   0.3287%  wrong   0.0000%  loss 0.000000
+pair A                                                                                     # fires   3.9782%  wrong   0.0000%  loss 0.000000
+two pair, three of a kind                                                                  # fires   5.9729%  wrong   0.0000%  loss 0.000000
+pair J-A                                                                                   # fires   9.7377%  wrong   0.0568%  loss 0.000050
+3 to a royal                                                                               # fires   1.0911%  wrong   0.1219%  loss 0.000113
+4 to a flush                                                                               # fires   3.2902%  wrong   0.0000%  loss 0.000000
+pair                                                                                       # fires  28.2187%  wrong   0.0794%  loss 0.000193
+4 to a straight w=2                                                                        # fires   2.2717%  wrong   0.0000%  loss 0.000000
+3 to a straight flush w=3 fp=0, 3 to a straight flush h=2 fp=0                             # fires   0.5014%  wrong   0.0000%  loss 0.000000
+4 to a straight w=1 h=4                                                                    # fires   0.2456%  wrong   0.0000%  loss 0.000000
+2 high cards suited prefer low                                                             # fires   6.3630%  wrong   0.1053%  loss 0.000035
+3 to a straight flush h=1 fp=0                                                             # fires   0.8366%  wrong   0.0074%  loss 0.000010
+4 to a straight h=3, 3 to a straight flush w=2 fp=0                                        # fires   1.0301%  wrong   0.0000%  loss 0.000000
+4 to a straight w=1 h=2                                                                    # fires   0.6427%  wrong   0.0000%  loss 0.000000
+A                                                                                          # fires  12.2177%  wrong   0.3920%  loss 0.000144
+JT suited, 3 to a straight h=3                                                             # fires   0.8750%  wrong   0.1385%  loss 0.000048
+2 high cards prefer low                                                                    # fires   5.9188%  wrong   0.0000%  loss 0.000000
+QT suited                                                                                  # fires   0.3948%  wrong   0.0000%  loss 0.000000
+1 high card                                                                                # fires  11.7633%  wrong   0.4225%  loss 0.000180
+3 to a straight flush fp=0                                                                 # fires   0.2604%  wrong   0.0000%  loss 0.000000
+4 to a straight w=1 h=0                                                                    # fires   1.2139%  wrong   0.0000%  loss 0.000000
+discard everything                                                                         # fires   2.0320%  wrong   0.0000%  loss 0.000000

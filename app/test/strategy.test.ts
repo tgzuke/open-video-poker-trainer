@@ -44,7 +44,8 @@ describe("playing a strategy", () => {
     expect(play.hold).toBe(0b01111);
     expect(play.cards).toEqual(["Ah", "Kh", "Qh", "Jh", "2c"]);
     const rules = text.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
-    expect(rules[play.rule!]).toMatch(/^4 to a royal/);
+    // Lines, not rules: 4 to a royal may share its line (e.g. with full house).
+    expect(rules[play.rule!]).toMatch(/(^|, )4 to a royal(,|\s|$)/);
     expect(play.matching[0].rule).toBe(play.rule);
     expect(rules[play.matching.at(-1)!.rule]).toMatch(/^discard everything/);
   });

@@ -11,6 +11,18 @@
 //!    rule to its best position, drop rules that hurt, swap rules in and out
 //!    at the line cap — until nothing improves.
 //!
+//! 4. Fit to the line cap (`fit`). Adjacent rules that no hand reaching
+//!    them matches together are joined on one line (`super::compact`) and
+//!    count as one line, so the search may keep more rules than lines:
+//!    whenever joining frees lines, the cap on rules grows and the search
+//!    fills the freed slots with the best remaining candidates. Rules worth
+//!    less than `DEAD_RULE` are pruned, and never added.
+//!
+//! Guardrail: a dealt full house is never broken unless breaking it is an
+//! optimal play (e.g. three aces in Double Bonus). Any other hold of a
+//! dealt full house is forbidden like an ambiguous rule, so in practice
+//! "full house" sits above every general trips or pair rule.
+//!
 //! Every candidate ordering is scored exactly from step 2's table; the final
 //! strategy is re-scored by the exact evaluator.
 
@@ -41,17 +53,17 @@ pub struct Tier {
 pub const TIERS: [Tier; 3] = [
     Tier {
         name: "beginner",
-        max_lines: 15,
+        max_lines: 20,
         qualifiers: Qualifiers::None,
     },
     Tier {
         name: "intermediate",
-        max_lines: 30,
+        max_lines: 25,
         qualifiers: Qualifiers::FlushOnly,
     },
     Tier {
         name: "expert",
-        max_lines: 60,
+        max_lines: 40,
         qualifiers: Qualifiers::All,
     },
 ];
@@ -81,6 +93,9 @@ pub fn tier(name: &str) -> Result<Tier, String> {
 /// Loss assigned where a rule cannot decide between holds of different EV:
 /// large enough that the search never lets such a rule fire there.
 const AMBIGUOUS: f64 = 1.0e3;
+/// Rules that change the loss by less than this (credits per hand) are not
+/// worth a line: the generator prunes them and never adds them.
+pub const DEAD_RULE: f64 = 1.0e-7;
 const NONE: u32 = u32::MAX;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -390,6 +405,7 @@ impl MatchTable {
             let best = evs.best();
             let best_ev = evs.ev(best);
             let w = cl.weight as f64 / deals;
+            let full_house = an.game.hand_info(&cl.cards).kind == HandKind::FullHouse;
             matched.clear();
             for f in &feats {
                 subset_keys(f, &mut keys);
@@ -411,10 +427,15 @@ impl MatchTable {
                     unreachable!()
                 };
                 let m = mask as usize;
+                let optimal = evs.cmp(m, best) == std::cmp::Ordering::Equal;
                 let loss = if alternatives
                     .iter()
                     .any(|&a| evs.cmp(a as usize, m) != std::cmp::Ordering::Equal)
                 {
+                    AMBIGUOUS
+                } else if full_house && m != 31 && !optimal {
+                    // Full house guardrail: never break a dealt full house
+                    // unless that is an optimal play.
                     AMBIGUOUS
                 } else if evs.cmp(m, best) == std::cmp::Ordering::Equal {
                     0.0
@@ -475,6 +496,8 @@ struct Search<'a> {
     max_rules: usize,
     /// Tie preference for ordinary insertions (see `insert_eval_pref`).
     tie_top: bool,
+    /// Smallest gain (credits/hand) for which `fill` adds a rule.
+    min_gain: f64,
     /// Pat hands each rule covers, and how many listed rules cover each.
     cover: Vec<u8>,
     cover_count: [u32; 6],
@@ -507,6 +530,7 @@ impl<'a> Search<'a> {
             t,
             max_rules,
             tie_top: false,
+            min_gain: DEAD_RULE,
             cover,
             cover_count: [0; 6],
             order: vec![],
@@ -647,7 +671,7 @@ impl<'a> Search<'a> {
         let mut changed = false;
         while self.order.len() < self.max_rules {
             match self.best_insertion(NONE) {
-                Some((d, r, p)) if d < -EPS => {
+                Some((d, r, p)) if d < -self.min_gain => {
                     self.insert(r, p);
                     changed = true;
                 }
@@ -843,16 +867,60 @@ impl<'a> Search<'a> {
         self.total = self.cur.iter().sum();
     }
 
-    fn prune_unused(&mut self) {
-        let mut used = vec![false; self.t.rules.len()];
-        for &f in &self.fired {
-            used[f as usize] = true;
-        }
-        for r in self.order.clone() {
-            if !used[r as usize] && !self.required(r) {
-                self.remove(r);
+    /// Dead-rule pruning: repeatedly drops the listed rule whose removal
+    /// costs least, while that cost is under `DEAD_RULE` (rules that never
+    /// decide a hand cost nothing). Rules needed for pat-hand coverage stay.
+    fn prune_dead(&mut self) -> bool {
+        let mut changed = false;
+        loop {
+            let cheapest = self
+                .order
+                .iter()
+                .filter(|&&r| !self.required(r))
+                .map(|&r| (self.removal_delta(r), r))
+                .min_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+            match cheapest {
+                Some((d, r)) if d < DEAD_RULE => {
+                    self.remove(r);
+                    changed = true;
+                }
+                _ => break,
             }
         }
+        self.resync();
+        changed
+    }
+
+    /// Written lines the list needs, counting "discard everything", when
+    /// adjacent rules are joined as `super::compact` joins them (same
+    /// greedy grouping, from this search's own match table).
+    fn line_count(&self) -> usize {
+        let n = self.order.len();
+        // min_next[p]: earliest later listed rule that also matches a hand
+        // the rule at position p decides.
+        let mut min_next = vec![usize::MAX; n + 1];
+        for c in 0..self.t.classes() {
+            let fp = self.pos[self.fired[c] as usize] as usize;
+            let mut next = usize::MAX;
+            for e in self.t.cls_off[c] as usize..self.t.cls_off[c + 1] as usize {
+                let p = self.pos[self.t.cls_rule[e] as usize];
+                if p != NONE && (p as usize) > fp {
+                    next = next.min(p as usize);
+                }
+            }
+            min_next[fp] = min_next[fp].min(next);
+        }
+        let mut lines = 1; // "discard everything" (position n) stands alone
+        let mut limit = 0usize;
+        for p in 0..n {
+            if p > 0 && p < limit {
+                limit = limit.min(min_next[p]);
+            } else {
+                lines += 1;
+                limit = min_next[p];
+            }
+        }
+        lines
     }
 }
 
@@ -978,12 +1046,47 @@ fn search_backward<'a>(
     s
 }
 
-/// Warm start: begin from an existing strategy (e.g. the tier below).
+/// Rounds of `fit` (each re-runs the local search at a new rule cap).
+const FIT_ROUNDS: usize = 10;
+
+/// Fits the search to `lines` written lines (see the module docs): prune
+/// dead rules, count lines with joining, then grow the rule cap into freed
+/// lines (or shrink it if over) and search again, until the count settles.
+/// Leaves `s` at the lowest-loss ordering that fits.
+fn fit(s: &mut Search, fam: &[Vec<u32>], lines: usize) {
+    let mut best: Option<(f64, Vec<u32>)> = None;
+    let mut seen: HashSet<Vec<u32>> = HashSet::new();
+    for round in 0..FIT_ROUNDS {
+        s.prune_dead();
+        let n = s.line_count();
+        if n <= lines && best.as_ref().is_none_or(|b| s.total < b.0 - EPS) {
+            best = Some((s.total, s.order.clone()));
+        }
+        if !seen.insert(s.order.clone()) || (n == lines && round > 0) {
+            break;
+        }
+        let len = s.order.len();
+        if n > lines {
+            s.max_rules = len.saturating_sub(n - lines);
+            s.shrink_to_cap();
+        } else {
+            s.max_rules = len + (lines - n);
+        }
+        improve(s, fam);
+        s.resync();
+    }
+    if let Some((_, order)) = best {
+        s.restore(&order);
+    }
+}
+
+/// Warm start: begin from an existing strategy (e.g. the tier below). The
+/// rule cap starts at the seed's own size (its lines may be joined); `fit`
+/// then brings it to the line cap.
 fn search_seeded<'a>(
     table: &'a MatchTable,
     cap: usize,
     seed: &Strategy,
-    fam: &[Vec<u32>],
     tie_top: bool,
 ) -> Option<Search<'a>> {
     let index: HashMap<Rule, u32> = table
@@ -992,6 +1095,7 @@ fn search_seeded<'a>(
         .enumerate()
         .map(|(i, r)| (*r, i as u32))
         .collect();
+    let cap = cap.max(seed.rules.len());
     let mut s = Search::new(table, cap);
     s.tie_top = tie_top;
     for r in seed.rules.iter().filter(|r| r.pattern != Pattern::Nothing) {
@@ -1005,7 +1109,6 @@ fn search_seeded<'a>(
         return None;
     }
     s.resync();
-    improve(&mut s, fam);
     Some(s)
 }
 
@@ -1031,7 +1134,8 @@ pub fn tier_allows(tier: &Tier, r: &Rule) -> bool {
     }
 }
 
-/// Generates the lowest-loss strategy it can find within the tier's cap.
+/// Generates the lowest-loss strategy it can find within the tier's line
+/// cap, with joined lines counting once.
 /// Each of `seeds` (typically the tier below, and the same tier's lists for
 /// other pay tables of the game) is an extra starting point: its rules join
 /// the candidate library (if the tier allows them) and the search starts
@@ -1077,15 +1181,20 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seeds: &[&Strategy]) -
     }
     let run = |job: Job| -> Option<Search> {
         let t = debug.then(std::time::Instant::now);
-        let r = match job {
+        let mut r = match job {
             Job::Forward(h, tt) => Some(search_forward(&table, cap, h, &fam, tt)),
             Job::Backward(h, tt) => Some(search_backward(&table, cap, h, &fam, tt)),
-            Job::Seeded(i, tt) => search_seeded(&table, cap, seeds[i], &fam, tt),
+            Job::Seeded(i, tt) => search_seeded(&table, cap, seeds[i], tt),
         };
+        if let Some(s) = &mut r {
+            fit(s, &fam, tier.max_lines);
+        }
         if let (Some(t), Some(r)) = (t, &r) {
             eprintln!(
-                "  run loss {:.7} {:.1}s",
+                "  run loss {:.7} rules {} lines {} {:.1}s",
                 r.total,
+                r.order.len(),
+                r.line_count(),
                 t.elapsed().as_secs_f64()
             );
         }
@@ -1106,12 +1215,22 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seeds: &[&Strategy]) -
         .into_iter()
         .reduce(|a, b| if b.total < a.total - EPS { b } else { a })
         .unwrap();
-    s.prune_unused();
     s.resync();
     let mut rules: Vec<Rule> = s.order.iter().map(|&r| table.rules[r as usize]).collect();
     rules.push(Rule::new(Pattern::Nothing));
+    let tidy = super::tidy(&Strategy::new(rules));
+    // Reading order (natural_order) unless it needs more lines than the
+    // search's own order once joined; the search's order always fits.
+    let natural = super::compact(an, &super::natural_order(an, pays, &tidy));
+    let own = super::compact(an, &tidy);
+    let strategy = if own.line_count() < natural.line_count() {
+        own
+    } else {
+        natural
+    };
+    assert!(strategy.line_count() <= tier.max_lines.max(s.line_count()));
     Generated {
-        strategy: super::natural_order(an, pays, &super::tidy(&Strategy { rules })),
+        strategy,
         loss: s.total,
         candidates: table.rules.len(),
         entries: table.entries(),
