@@ -5,7 +5,8 @@ import type { Feedback, LessonPrompt } from "../trainer/trainer";
 import { ruleDisplay } from "../trainer/ruleText";
 import type { GameState } from "../game/model";
 import type { Anim } from "./anim";
-import { RANK_TEXT, SUIT_IS_RED, textWidth, wrap } from "./font";
+import { textWidth, wrap } from "./font";
+import type { CardRenderer } from "../skins/cards";
 import { drawStrategyTag } from "./strategyView";
 import type { Rect } from "./pix";
 
@@ -23,6 +24,8 @@ export interface CabinetView {
   rank(card: number): number;
   suit(card: number): number;
   trainer: TrainerView;
+  /** Draws card faces and backs through the current skin. */
+  cards: CardRenderer;
 }
 
 export interface TrainerView {
@@ -106,30 +109,6 @@ function right(p: Pix, s: string, rx: number, y: number, scale: number, color: s
   p.text(s, rx - textWidth(s, scale), y, scale, color);
 }
 
-function drawCardFace(p: Pix, x: number, y: number, w: number, rank: number, suit: number) {
-  // Rounded corners: inset the corner pixels.
-  p.rect(x + 1, y, w - 2, C.h, P.cardEdge);
-  p.rect(x, y + 1, w, C.h - 2, P.cardEdge);
-  p.rect(x + 1, y + 1, w - 2, C.h - 2, P.cardFace);
-  if (w < C.w) return; // mid-flip: plain face
-  const color = SUIT_IS_RED[suit] ? P.suitRed : P.suitBlack;
-  const r = RANK_TEXT[rank];
-  p.text(r, x + 4, y + 4, 2, color);
-  p.suit(suit, x + 4, y + 21, 1, color);
-  p.suit(suit, x + Math.round((C.w - 27) / 2), y + 44, 3, color);
-}
-
-function drawCardBack(p: Pix, x: number, y: number, w: number) {
-  p.rect(x + 1, y, w - 2, C.h, P.cardEdge);
-  p.rect(x, y + 1, w, C.h - 2, P.cardEdge);
-  p.rect(x + 1, y + 1, w - 2, C.h - 2, P.cardFace);
-  if (w <= 4) return;
-  p.rect(x + 3, y + 3, w - 6, C.h - 6, P.cardBack);
-  // Diamond lattice.
-  for (let yy = 6; yy < C.h - 6; yy += 6)
-    for (let xx = 6 + ((yy / 6) % 2) * 3; xx < w - 6; xx += 6) p.rect(x + xx, y + yy, 2, 2, P.cardBackPattern);
-}
-
 export function drawCabinet(p: Pix, v: CabinetView, anim: Anim, now: number) {
   const ctx = p.ctx;
   ctx.fillStyle = "#000";
@@ -178,14 +157,14 @@ export function drawCabinet(p: Pix, v: CabinetView, anim: Anim, now: number) {
   for (let i = 0; i < 5; i++) {
     const x = cardX(i, mode);
     if (!hand) {
-      drawCardBack(p, x, C.y, C.w);
+      v.cards.back(p, x, C.y, C.w);
       continue;
     }
     const look = anim.card(i, now);
     const w = Math.max(2, Math.round(C.w * look.width));
     const cx = x + Math.round((C.w - w) / 2);
-    if (look.face) drawCardFace(p, cx, C.y, w, v.rank(hand.cards[i]), v.suit(hand.cards[i]));
-    else drawCardBack(p, cx, C.y, w);
+    if (look.face) v.cards.face(p, cx, C.y, w, v.rank(hand.cards[i]), v.suit(hand.cards[i]));
+    else v.cards.back(p, cx, C.y, w);
     if (s.phase === "dealt" && hand.held[i]) centered(p, "HELD", x + C.w / 2, LAYOUT.held.y, 1, P.held);
     if (lesson?.hint != null && (lesson.hint >> i) & 1) {
       // Lesson hint: a bright frame around each card to hold.

@@ -43,6 +43,13 @@ export class Pix {
   private dy(y: number) {
     return Math.round(this.oy + y * this.k);
   }
+  /** Device pixel of a logical x / y (as rect() rounds them). */
+  devX(x: number) {
+    return this.dx(x);
+  }
+  devY(y: number) {
+    return this.dy(y);
+  }
 
   rect(x: number, y: number, w: number, h: number, color: string) {
     const x0 = this.dx(x);
@@ -64,6 +71,28 @@ export class Pix {
         const start = c;
         while (c < row.length && row[c]) c++;
         this.rect(x + start * scale, y + r * scale, (c - start) * scale, scale, color);
+      }
+    }
+  }
+
+  /** Draws a palette-indexed bitmap: each row is a string of palette keys
+   *  (one character per pixel; "." or " " is transparent). Runs of the same
+   *  key in a row are merged into one rect. `sx`/`sy` are the logical size
+   *  of one bitmap pixel (e.g. 0.5 for art on a half-pixel grid). */
+  paletteBitmap(rows: readonly string[], palette: Readonly<Record<string, string>>, x: number, y: number, sx: number, sy = sx) {
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      let c = 0;
+      while (c < row.length) {
+        const key = row[c];
+        if (key === "." || key === " ") {
+          c++;
+          continue;
+        }
+        const start = c;
+        while (c < row.length && row[c] === key) c++;
+        const color = palette[key];
+        if (color) this.rect(x + start * sx, y + r * sy, (c - start) * sx, sy, color);
       }
     }
   }

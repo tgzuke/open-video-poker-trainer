@@ -45,12 +45,6 @@ export const PALETTE = {
   meterText: "#ff3a2a",
   meterLabel: "#ffd800",
   held: "#ffd800",
-  cardFace: "#f8f8f0",
-  cardEdge: "#202020",
-  cardBack: "#c81818",
-  cardBackPattern: "#ffd800",
-  suitRed: "#d01818",
-  suitBlack: "#101010",
   message: "#ffffff",
   winMessage: "#ffd800",
 };

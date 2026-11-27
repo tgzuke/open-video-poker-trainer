@@ -5,6 +5,7 @@ import { PALETTE as P } from "./config/feel";
 import { FEEDBACK as F } from "./config/trainer";
 import { RANK_TEXT, SUIT_IS_RED, textWidth } from "./render/font";
 import { Pix } from "./render/pix";
+import { BASIC_COLORS as BC } from "./config/skins";
 
 /** Logical grid: 315×250, drawn at 2× = 630×500. */
 const W = 315;
@@ -45,10 +46,10 @@ hand.forEach(([rank, suit, held], i) => {
   const x = x0 + i * (CARD.w + CARD.gap);
   const y = CARD.y;
   if (held) p.text("HELD", x + Math.round((CARD.w - textWidth("HELD")) / 2), y - 9, 1, P.held);
-  p.rect(x + 1, y, CARD.w - 2, CARD.h, P.cardEdge);
-  p.rect(x, y + 1, CARD.w, CARD.h - 2, P.cardEdge);
-  p.rect(x + 1, y + 1, CARD.w - 2, CARD.h - 2, P.cardFace);
-  const color = SUIT_IS_RED[suit] ? P.suitRed : P.suitBlack;
+  p.rect(x + 1, y, CARD.w - 2, CARD.h, BC.cardEdge);
+  p.rect(x, y + 1, CARD.w, CARD.h - 2, BC.cardEdge);
+  p.rect(x + 1, y + 1, CARD.w - 2, CARD.h - 2, BC.cardFace);
+  const color = SUIT_IS_RED[suit] ? BC.suitRed : BC.suitBlack;
   p.text(RANK_TEXT[rank], x + 4, y + 4, 2, color);
   p.suit(suit, x + 4, y + 21, 1, color);
   p.suit(suit, x + Math.round((CARD.w - 27) / 2), y + 38, 3, color);

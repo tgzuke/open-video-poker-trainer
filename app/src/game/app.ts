@@ -10,6 +10,8 @@ import { apply, cryptoRng, initialState, type GameEvent, type GameState, type Rn
 import { modelRules, payGrid } from "./rules";
 import type { Mode } from "../config/trainer";
 import type { Trainer } from "../trainer/trainer";
+import { CardRenderer } from "../skins/cards";
+import { BASIC_BACK, BASIC_FACES } from "../skins/basic";
 
 export interface Table {
   wasm: WasmRules;
@@ -38,6 +40,10 @@ export class GameApp {
   tag: () => string | null = () => null;
   /** Drawn over the cabinet (e.g. the strategy view), or null. */
   overlay: ((p: Pix) => void) | null = null;
+  /** Card faces and backs (the skin). */
+  cards = new CardRenderer(BASIC_FACES, BASIC_BACK);
+  /** Frame timing: last and worst draw time (ms) since `resetFrameStats`. */
+  frameStats = { last: 0, worst: 0, total: 0, frames: 0 };
 
   constructor(
     private pix: Pix,
@@ -66,7 +72,19 @@ export class GameApp {
       rank: (c) => t.wasm.rank(c),
       suit: (c) => t.wasm.suit(c),
       trainer: { mode: "free", tag: null, feedback: null, lesson: null },
+      cards: this.cards,
     };
+  }
+
+  /** Switch the card skin (the next frame uses it). */
+  setCards(cards: CardRenderer) {
+    this.cards = cards;
+    this.view.cards = cards;
+    this.request();
+  }
+
+  resetFrameStats() {
+    this.frameStats = { last: 0, worst: 0, total: 0, frames: 0 };
   }
 
   /** Switch game / pay table / progressive (only between hands). */
@@ -158,9 +176,11 @@ export class GameApp {
     for (const e of events) {
       switch (e.type) {
         case "bet":
+          this.sfx.cancelPayout(); // a bet during the count-up stops its sound
           this.sfx.bet();
           break;
         case "deal":
+          this.sfx.cancelPayout();
           this.sfx.cards([0, 1, 2, 3, 4].map((i) => i * t.cardStepMs));
           revealEnd = 4 * t.cardStepMs + t.flipMs;
           // A dealt hand that already pays gets its own cue, as on a cabinet.
@@ -174,10 +194,15 @@ export class GameApp {
           this.sfx.hold(e.held);
           break;
         case "win": {
-          const big = e.amount >= 50 * this.state.bet;
-          this.sfx.win(revealEnd, big);
-          const dur = countUpMs(this.anim.speed, e.amount);
-          if (dur > 0) this.sfx.countUp(revealEnd + 200, dur);
+          // The count-up (anim.ts) starts when the drawn cards are face up.
+          this.sfx.payout({
+            atMs: revealEnd,
+            durMs: countUpMs(this.anim.speed, e.amount),
+            amount: e.amount,
+            bet: this.state.bet,
+            big: e.amount >= 50 * this.state.bet,
+            top: e.category === 0,
+          });
           break;
         }
         case "rejected":
@@ -202,8 +227,15 @@ export class GameApp {
       feedback: this.trainer?.feedback ?? null,
       lesson: this.trainer?.lesson ?? null,
     };
+    const t0 = performance.now();
     drawCabinet(this.pix, this.view, this.anim, now);
     this.overlay?.(this.pix);
+    const ms = performance.now() - t0;
+    const f = this.frameStats;
+    f.last = ms;
+    f.worst = Math.max(f.worst, ms);
+    f.total += ms;
+    f.frames++;
     if (this.pendingInputAt !== null) {
       this.lastInputToFrameMs = performance.now() - this.pendingInputAt;
       this.pendingInputAt = null;

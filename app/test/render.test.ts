@@ -7,30 +7,9 @@ import { Anim } from "../src/render/anim";
 import { Pix } from "../src/render/pix";
 import { initialState, type GameState } from "../src/game/model";
 import type { Mode } from "../src/config/trainer";
-
-/** A 2D context that records what is drawn. */
-export class RecordingCtx {
-  calls: string[] = [];
-  fillStyle = "#000";
-  imageSmoothingEnabled = true;
-  canvas = { width: 1280, height: 720 };
-  fillRect(x: number, y: number, w: number, h: number) {
-    this.calls.push(`${this.fillStyle} ${x} ${y} ${w} ${h}`);
-  }
-  drawImage(...a: unknown[]) {
-    this.calls.push(`img ${a.slice(1).join(" ")}`);
-  }
-}
-
-export function hash(lines: string[]): string {
-  let h = 0x811c9dc5;
-  for (const l of lines)
-    for (let i = 0; i < l.length; i++) {
-      h ^= l.charCodeAt(i);
-      h = Math.imul(h, 0x01000193) >>> 0;
-    }
-  return h.toString(16).padStart(8, "0");
-}
+import { RecordingCtx, hash } from "./recording";
+import { CardRenderer } from "../src/skins/cards";
+import { BASIC_BACK, BASIC_FACES } from "../src/skins/basic";
 
 /** Card id c → rank 2..14, suit 0..3 (test mapping). */
 const rank = (c: number) => 2 + (c % 13);
@@ -45,6 +24,7 @@ export function view(state: GameState, mode: Mode, extra: Partial<CabinetView> =
     rank,
     suit,
     trainer: { mode, tag: null, feedback: null, lesson: null },
+    cards: new CardRenderer(BASIC_FACES, BASIC_BACK),
     ...extra,
   };
 }
