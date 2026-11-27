@@ -68,8 +68,7 @@ export function suitRaster(suit: number, w: number, h = w): Raster {
   r.fill(s, k.base, k.aa);
   if (w >= 24) {
     const o = Math.max(1, Math.round(w * 0.05));
-    r.rim(s, k.base, k.dark, o, o); // shadow, lower right
-    r.rim(s, k.base, k.light, -o * 1.5, -o * 1.5); // highlight, upper left
+    r.rim(s, k.base, k.dark, o, o); // a thin shadow, lower right (flat and crisp otherwise)
   }
   return r;
 }

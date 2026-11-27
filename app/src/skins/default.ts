@@ -4,10 +4,10 @@
 import { ART_BOX, ART_SCALE, FACE_PALETTE } from "../config/skins";
 import { LAYOUT } from "../config/feel";
 import type { Pix } from "../render/pix";
-import { Raster, roundRect } from "./raster";
+import { Raster, roundRect, shape } from "./raster";
 import { BACKS, backRaster, type BackDesign } from "./art/backs";
-import { aceOfSpadesRaster, courtPlan, courtRaster } from "./art/court";
-import { ink, rankRaster, suitRaster } from "./art/suits";
+import { aceCrestRaster, courtPlan, courtRaster } from "./art/court";
+import { ink, rankRaster, suitRaster, suitRing } from "./art/suits";
 import type { BackSkin, FaceSkin } from "./types";
 
 const C = LAYOUT.cards;
@@ -23,6 +23,9 @@ export function artBox() {
     h: Math.round(ART_BOX.h * ART_H),
   };
 }
+
+/** The large suit on every card (art pixels). */
+export const BIG_SUIT = { size: 56, y: 100 };
 
 /** Index position (top-left) and sizes, in art pixels. */
 export const INDEX = { x: 7, y: 8, rankH: 24, suitY: 37, suitW: 16 };
@@ -43,15 +46,23 @@ export function faceRows(rank: number, suit: number): string[] {
   const k = ink(suit);
   r.stamp(rankRaster(rank, INDEX.rankH, k.base, k.aa), INDEX.x, INDEX.y);
   r.stamp(suitRaster(suit, INDEX.suitW), INDEX.x, INDEX.suitY);
+  // Every card keeps the large suit, centred and pushed down; court cards
+  // and the A♠ add art in the upper-right corner, opposite the index.
+  const size = BIG_SUIT.size;
+  const bx = Math.round((ART_W - size) / 2);
+  r.stamp(suitRaster(suit, size), bx, BIG_SUIT.y);
   const box = artBox();
   if (rank >= 11 && rank <= 13) {
     r.stamp(courtRaster(courtPlan(rank as 11 | 12 | 13, suit), box.w, box.h), box.x, box.y);
   } else if (rank === 14 && suit === 3) {
-    r.stamp(aceOfSpadesRaster(box.w, box.h), box.x, box.y);
-  } else {
-    // Number cards and the other aces: a large suit, centred, pushed down.
-    const size = 56;
-    r.stamp(suitRaster(suit, size), Math.round((ART_W - size) / 2), 92);
+    r.stamp(aceCrestRaster(box.w, box.h), box.x, box.y);
+    // The large spade itself is decorated: a gold inset line and a blue gem.
+    r.fill(suitRing(3, bx + 8, BIG_SUIT.y + 7, size - 16, size - 18, 2.2), "y", "Y");
+    const gx = bx + size / 2;
+    const gy = BIG_SUIT.y + size * 0.52;
+    const gem = shape((x, y) => Math.abs(x - gx) / 5 + Math.abs(y - gy) / 7 <= 1, [gx - 5, gy - 7, gx + 5, gy + 7]);
+    r.fill(gem, "b", "B");
+    r.rim(gem, "b", "c", -1, -1);
   }
   return r.rows();
 }

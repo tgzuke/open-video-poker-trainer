@@ -78,14 +78,14 @@ describe("card skins", () => {
     const all = new Map<string, string>();
     for (const rank of [11, 12, 13] as const)
       for (let suit = 0; suit < 4; suit++) {
-        const a = courtRaster(courtPlan(rank, suit), 77, 162).rows().join("\n");
-        const b = courtRaster(courtPlan(rank, suit), 77, 162).rows().join("\n");
+        const a = courtRaster(courtPlan(rank, suit), 72, 80).rows().join("\n");
+        const b = courtRaster(courtPlan(rank, suit), 72, 80).rows().join("\n");
         expect(a).toBe(b); // same seed, same pixels
         all.set(`${rank}/${suit}`, a);
       }
     expect(new Set(all.values()).size).toBe(12);
     // A different seed gives a different variation.
-    expect(courtRaster(courtPlan(13, 2, 1), 77, 162).rows().join("\n")).not.toBe(all.get("13/2"));
+    expect(courtRaster(courtPlan(13, 2, 1), 72, 80).rows().join("\n")).not.toBe(all.get("13/2"));
     // Kings, queens and jacks differ in kind, not only colour.
     expect(courtPlan(13, 0).held).not.toBe(courtPlan(12, 0).held);
     expect(courtPlan(12, 0).held).not.toBe(courtPlan(11, 0).held);

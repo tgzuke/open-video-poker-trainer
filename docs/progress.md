@@ -935,9 +935,9 @@ of the pre-skin renderer.
   not built.
 
 ### For playtesting
-- **Portrait box position:** `ART_BOX` in `app/src/config/skins.ts`
-  (default top-right, 60% of the width, 92% of the height). Bottom-right
-  would be e.g. `{ x: 0.36, y: 0.2, w: 0.6, h: 0.76 }`.
+- **Portrait box:** `ART_BOX` in `app/src/config/skins.ts`. Since the art
+  revision below, it is the upper-right corner, 72×80 art pixels; keep
+  multiples of the 36×40 sprite grid so pixels stay square.
 - **Back choice:** the Diamond lattice is the default; five alternatives are
   in Settings.
 - **Payout trill** (`TRILL` in `app/src/config/skins.ts`): `rate` 20
@@ -951,3 +951,32 @@ of the pre-skin renderer.
   replaces Basic's ticks rather than layering over them. Basic's ticks
   still start 200 ms after the win jingle, as before.
 - Mixed choice: a Default deck with Basic chiptune sounds, or the reverse.
+
+### Owner review (2026-11-27) and card art revision
+- Milestone A decisions: **no regeneration** (it would only affect Expert
+  lists, which are effectively uncapped), and **drop "inside"** where
+  outside straights are already taken above (as shipped).
+- Card art: real machines keep the large suit symbol on every card and put
+  only a small stylized portrait in the upper-right corner. The Default
+  faces now follow that layout (reference: a photo of a machine the owner
+  provided; layout only, no art taken from it):
+  - Every card has the index (top left) and a large, flat suit, centred
+    in the lower half. The highlight tone is gone; a thin shadow and
+    anti-aliased edges remain.
+  - **Court cards:** a bust in the upper-right box. It's drawn as pixel art
+    on a 36×40 sprite grid, each sprite pixel 2×2 art pixels (one logical
+    pixel), with dark outlines, flat colours and one shade. Faces are
+    hand-placed pixel templates (18×19, front and profile); crown, cap,
+    hair, beard, collar, robe and held object are crisp outlined shapes.
+    Hair colour is set per rank and suit, so the four kings or queens never
+    look alike.
+  - **A♠:** a crest in the corner (a crowned, gold-rimmed blue shield with
+    a white spade, on a red ribbon with three stars) and a large spade
+    decorated with a gold inset line and a blue gem.
+  - `ART_BOX` is now the upper-right box, 72×80 art pixels: exactly 2× the
+    sprite grid, so every pixel stays square. Bottom-right was considered,
+    but the large suit sits there.
+- Tests unchanged except the portrait test's box size argument (72×80);
+  all 84 app tests pass. Checked in Chrome; console clean.
+
+![Default faces: kings, A♠, queens, jacks](images/default-faces.png)

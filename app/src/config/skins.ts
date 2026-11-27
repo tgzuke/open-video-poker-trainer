@@ -14,10 +14,12 @@ export const BASIC_COLORS = {
   suitBlack: "#101010",
 };
 
-/** Default theme, court cards and the A♠: where the art box sits on the
- *  card, as fractions of the card's width/height (index column on the
- *  left). Bottom-right instead: e.g. { x: 0.36, y: 0.2, w: 0.6, h: 0.76 }. */
-export const ART_BOX = { x: 0.36, y: 0.04, w: 0.6, h: 0.92 };
+/** Default theme, court cards and the A♠: the corner art box, as
+ *  fractions of the card's width/height. Default: upper right, opposite
+ *  the index, above the large suit (as on real machines). The bust is
+ *  pixel art on a 36×40 grid, so sizes that are multiples of it (here
+ *  2×: 72×80 art pixels) keep every pixel square. */
+export const ART_BOX = { x: 50 / 128, y: 6 / 176, w: 72 / 128, h: 80 / 176 };
 
 /** Default theme art grid: art pixels per logical pixel (2 = a 128×176
  *  grid on a 64×88 card). */
