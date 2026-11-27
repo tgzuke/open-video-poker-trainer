@@ -27,6 +27,11 @@ usage:
                                                 how B differs from A, each change's
                                                 EV effect playing table B
   ovp strategy tidy FILE...                     tidy + reading order (play unchanged)
+  ovp strategy simplify FILE... [-p TABLE] [--renames JSON]
+                                                drop qualifiers that change no hold
+                                                (play unchanged; re-scored, not
+                                                regenerated); --renames records
+                                                old -> new rule text for stats
   ovp strategy play FILE [TABLE] \"As Ks Qs Js 2c\"
 
 TABLE selects a pay table (default jacks-or-better-9-6):
@@ -49,6 +54,7 @@ struct Opts {
     tier: Option<String>,
     max_lines: Option<usize>,
     out: Option<String>,
+    renames: Option<String>,
     positional: Vec<String>,
 }
 
@@ -66,6 +72,7 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
         tier: None,
         max_lines: None,
         out: None,
+        renames: None,
         positional: vec![],
     };
     let mut it = args.iter();
@@ -98,6 +105,7 @@ fn parse_opts(args: &[String]) -> Result<Opts, String> {
             "--tier" => o.tier = Some(val(a)?),
             "--max-lines" => o.max_lines = Some(val(a)?.parse().map_err(|_| "bad --max-lines")?),
             "--out" | "-o" => o.out = Some(val(a)?),
+            "--renames" => o.renames = Some(val(a)?),
             s if s.starts_with('-') => return Err(format!("unknown option {s}")),
             s => o.positional.push(s.to_string()),
         }
@@ -538,6 +546,140 @@ fn check_and_render(
     Ok((strategy::render_file(&g.strategy, &report, &meta), report))
 }
 
+/// `strategy simplify`: rewrites files in place with the plainest wording
+/// that plays every hand class identically, re-scored (not regenerated).
+fn cmd_simplify(o: &Opts) -> Result<bool, String> {
+    use serde_json::{Map, Value};
+    let mut renames: Map<String, Value> = match &o.renames {
+        Some(f) => match std::fs::read_to_string(f) {
+            Ok(t) => serde_json::from_str::<Value>(&t)
+                .map_err(|e| format!("{f}: {e}"))?
+                .get("lists")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default(),
+            Err(_) => Map::new(),
+        },
+        None => Map::new(),
+    };
+    let start = Instant::now();
+    let mut pass_secs = 0.0;
+    let mut ok = true;
+    println!(
+        "{:<52} {:>5} {:>5} {:>6} {:>6} {:>9}",
+        "File", "Lines", "->", "Quals", "->", "Simplify s"
+    );
+    for file in &o.positional[1..] {
+        let text = std::fs::read_to_string(file).map_err(|e| format!("{file}: {e}"))?;
+        let head = |k: &str| {
+            text.lines()
+                .find_map(|l| l.strip_prefix(&format!("# {k}: ")))
+                .map(str::to_string)
+        };
+        let table = if o.paytable_file.is_some() || o.paytable != DEFAULT_PAYTABLE {
+            load_table(o)?.1
+        } else {
+            builtin_paytable(&head("paytable").ok_or(format!("{file}: no paytable header (use -p)"))?)?
+        };
+        let game = builtin_game(&table.game)?;
+        let bet: u32 = match head("bet") {
+            Some(b) => b.parse().map_err(|_| "bad bet header")?,
+            None => game.def.max_bet,
+        };
+        let progressive = head("progressive").map(|p| p.parse::<i64>()).transpose().map_err(|_| "bad progressive header")?;
+        let tier = head("tier").and_then(|t| t.split(' ').next().map(str::to_string));
+        let tier = tier.map(|t| strategy::tier(&t)).transpose()?;
+        let pays = game.pays(&table, Wager { bet, progressive })?;
+        let an = Analyzer::new(game);
+        let old = Strategy::parse(&text)?;
+        let ts = Instant::now();
+        let new = strategy::simplify(&an, &old);
+        let simplify_secs = ts.elapsed().as_secs_f64();
+        pass_secs += simplify_secs;
+        let r_old = strategy::evaluate(&an, &pays, bet, &old);
+        let r_new = strategy::evaluate(&an, &pays, bet, &new);
+        if r_old.ret != r_new.ret || r_old.holds != r_new.holds || !r_new.is_complete() {
+            return Err(format!("{file}: simplify changed play"));
+        }
+        if new.line_count() > old.line_count() {
+            return Err(format!("{file}: simplify needs more lines"));
+        }
+        let meta = FileMeta {
+            game: &an.game.def.id,
+            paytable: &table.id,
+            bet,
+            progressive,
+            tier: tier.as_ref(),
+        };
+        let out = strategy::render_file(&new, &r_new, &meta);
+        // Same numbers to the last printed digit.
+        for k in ["return", "loss"] {
+            let h = |t: &str| t.lines().find(|l| l.starts_with(&format!("# {k}: "))).map(str::to_string);
+            if h(&text) != h(&out) {
+                println!("{file}: '{k}' header changed: {:?} -> {:?}", h(&text), h(&out));
+                ok = false;
+            }
+        }
+        std::fs::write(file, &out).map_err(|e| format!("{file}: {e}"))?;
+        // Old -> new rule text, for carrying per-rule stats over.
+        if let Some(tier) = &tier {
+            let key = format!("{}/{}", table.id, tier.name);
+            let map = strategy::simplify::rule_map(&an, &old, &new);
+            let new_texts: Vec<String> = new.rules.iter().map(|r| r.to_string()).collect();
+            let mut entry: Map<String, Value> = renames
+                .get(&key)
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
+            let mut step: Vec<(String, String)> = vec![];
+            for (i, m) in map.iter().enumerate() {
+                let from = old.rules[i].to_string();
+                if let Some(j) = m {
+                    if from != new_texts[*j] {
+                        step.push((from, new_texts[*j].clone()));
+                    }
+                }
+            }
+            // Compose with earlier renames, so every source maps to a rule
+            // of the current list; a text the list uses again is no source.
+            for v in entry.values_mut() {
+                if let Some((_, to)) = step.iter().find(|(f, _)| Some(f.as_str()) == v.as_str()) {
+                    *v = Value::String(to.clone());
+                }
+            }
+            for (f, to) in step {
+                entry.insert(f, Value::String(to));
+            }
+            entry.retain(|f, _| !new_texts.contains(f));
+            renames.insert(key, Value::Object(entry));
+        }
+        println!(
+            "{:<52} {:>5} {:>5} {:>6} {:>6} {:>9.2}",
+            file,
+            old.line_count(),
+            new.line_count(),
+            strategy::simplify::count_qualifiers(&old),
+            strategy::simplify::count_qualifiers(&new),
+            simplify_secs
+        );
+    }
+    println!(
+        "simplify pass {:.1} s; total with loading and re-scoring {:.1} s",
+        pass_secs,
+        start.elapsed().as_secs_f64()
+    );
+    if let Some(f) = &o.renames {
+        renames.retain(|_, v| v.as_object().is_some_and(|m| !m.is_empty()));
+        let doc = serde_json::json!({
+            "about": "Per-rule stats migration: for each shipped list (paytable/tier), old rule text -> the rule of the current list that decides those hands. Written by `ovp strategy simplify --renames`.",
+            "lists": Value::Object(renames),
+        });
+        let text = serde_json::to_string_pretty(&doc).map_err(|e| e.to_string())? + "\n";
+        std::fs::write(f, text).map_err(|e| format!("{f}: {e}"))?;
+    }
+    Ok(ok)
+}
+
 fn cmd_strategy(o: &Opts) -> Result<bool, String> {
     let sub = o.positional.first().map(String::as_str).unwrap_or("");
     match sub {
@@ -776,6 +918,7 @@ fn cmd_strategy(o: &Opts) -> Result<bool, String> {
             }
             Ok(true)
         }
+        "simplify" => cmd_simplify(o),
         "play" => {
             let file = o.positional.get(1).ok_or("strategy play needs a FILE")?;
             let text = std::fs::read_to_string(file).map_err(|e| format!("{file}: {e}"))?;

@@ -5,12 +5,14 @@ pub mod evaluate;
 pub mod features;
 pub mod generate;
 pub mod rule;
+pub mod simplify;
 pub mod trainer;
 
 pub use compare::{Change, ChangeKind, Comparison, compare};
 pub use evaluate::{Play, Report, evaluate, matching_rules, play};
 pub use generate::{MAX_LINES, MIN_LINES, TIERS, Tier, generate, generate_tiers, tier};
 pub use rule::{Rule, Strategy};
+pub use simplify::simplify;
 pub use trainer::{DealCheck, deal_check};
 
 /// The single-hand rule for one pat-hand bit of `Pattern::Pat`.

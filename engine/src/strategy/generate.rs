@@ -1228,6 +1228,8 @@ pub fn generate(an: &Analyzer, pays: &[i64], tier: &Tier, seeds: &[&Strategy]) -
     } else {
         natural
     };
+    // Plainest wording with identical play (ends with its own compact).
+    let strategy = super::simplify(an, &strategy);
     assert!(strategy.line_count() <= tier.max_lines.max(s.line_count()));
     Generated {
         strategy,
