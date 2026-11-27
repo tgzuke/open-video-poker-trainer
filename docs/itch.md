@@ -7,8 +7,11 @@ cd app
 npm run build:itch
 ```
 
-This rebuilds the engine (wasm), type-checks, runs the app tests, builds the
-game page only (no engine dev shell) and writes:
+This first **bumps the version** in `app/package.json` (and
+`package-lock.json`): patch by default (0.1.0 → 0.1.1); use
+`VERSION_BUMP=minor npm run build:itch` (or `major`) for a bigger step.
+Then it rebuilds the engine (wasm), type-checks, runs the app tests,
+builds the game page only (no engine dev shell) and writes:
 
 - `release/open-video-poker-trainer-<version>-html5.zip`: upload this. It
   has `index.html` at its root, relative paths only, and about 65 files
@@ -18,7 +21,10 @@ game page only (no engine dev shell) and writes:
   exceeded.
 
 The version comes from `app/package.json` and is shown at the bottom of
-the in-game menu.
+the in-game menu and in the zip's name. Commit the bumped `package.json` and
+`package-lock.json` with the release, so each upload has its own number. If
+the build fails after the bump, the next run bumps again; reset the two
+files first if you want the same number.
 
 ## Upload (you do this; it needs your itch.io account)
 
