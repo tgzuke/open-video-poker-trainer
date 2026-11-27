@@ -1,6 +1,6 @@
 // Stats persistence in IndexedDB (SPEC §5.4, §7). Writes are batched off
 // the input path. If IndexedDB is unavailable, stats live for the page only.
-import { emptyAgg, record, reviveAgg, type HandRecord, type StatsBook } from "./stats";
+import { emptyAgg, migrateRuleTexts, record, reviveAgg, type HandRecord, type StatsBook } from "./stats";
 
 export interface Kv {
   get(key: string): Promise<unknown>;
@@ -68,12 +68,17 @@ export class Stats {
   ) {}
 
   /** Loads saved stats (call before play starts); a failed or malformed
-   *  load starts fresh. */
+   *  load starts fresh. Per-rule tallies of renamed shipped rules are
+   *  carried over to the new wording. */
   async load(): Promise<void> {
     for (const k of ["session", "lifetime"] as const) {
       try {
         const v = reviveAgg(await this.kv.get(k));
-        if (v) this.book[k] = v;
+        if (v) {
+          this.book[k] = v;
+          // Renamed rules of shipped lists keep their tallies.
+          if (migrateRuleTexts(v)) this.markDirty(k);
+        }
       } catch {
         /* keep fresh */
       }

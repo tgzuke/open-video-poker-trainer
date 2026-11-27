@@ -2,6 +2,7 @@
 // updates; persistence lives in store.ts.
 import type { DealCheck } from "../engine/protocol";
 import { samePlay } from "./grade";
+import renames from "../../../strategies/rule-renames.json";
 
 export interface RuleTally {
   opportunities: number;
@@ -105,6 +106,35 @@ export function reviveAgg(x: unknown): Agg | null {
   if (a.version !== 1 || nums.some((k) => typeof a[k] !== "number")) return null;
   if (typeof a.results !== "object" || typeof a.distance !== "object" || typeof a.rules !== "object") return null;
   return { ...emptyAgg(a.since), ...a } as Agg;
+}
+
+/** Per shipped list ("paytable/tier"): old rule text -> the rule of the
+ *  current list that now decides those hands. Written by
+ *  `ovp strategy simplify --renames` when a list's wording changes. */
+export type RuleRenames = Record<string, Record<string, string>>;
+export const RULE_RENAMES: RuleRenames = renames.lists;
+
+/** Carries per-rule tallies saved under old rule text over to the rule
+ *  that replaced it (summing when several old rules became one). Only
+ *  shipped lists are renamed; custom strategies keep their own text.
+ *  Idempotent: a renamed text is never a rule of the current list.
+ *  Returns whether anything moved. */
+export function migrateRuleTexts(a: Agg, lists: RuleRenames = RULE_RENAMES): boolean {
+  let moved = false;
+  for (const [key, map] of Object.entries(lists)) {
+    const book = a.rules[key];
+    if (!book) continue;
+    for (const [from, to] of Object.entries(map)) {
+      const t = book[from];
+      if (!t || from === to) continue;
+      const dst = (book[to] ??= { opportunities: 0, misses: 0 });
+      dst.opportunities += t.opportunities;
+      dst.misses += t.misses;
+      delete book[from];
+      moved = true;
+    }
+  }
+  return moved;
 }
 
 export interface StatsBook {

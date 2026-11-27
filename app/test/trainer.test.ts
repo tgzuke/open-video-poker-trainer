@@ -8,13 +8,14 @@ import type { DealCheck } from "../src/engine/protocol";
 import { loadPresetStrategy } from "../src/strategies";
 import { gradeHold, graceAt, heldMask, samePlay } from "../src/trainer/grade";
 import { Trainer, type CheckResult, type TrainerSettings } from "../src/trainer/trainer";
-import { emptyAgg, record, reviveAgg, type HandRecord } from "../src/trainer/stats";
+import { RULE_RENAMES, emptyAgg, migrateRuleTexts, record, reviveAgg, type HandRecord } from "../src/trainer/stats";
 import { MemoryKv, Stats } from "../src/trainer/store";
 import { GameApp } from "../src/game/app";
 import { Pix } from "../src/render/pix";
 import { Sfx } from "../src/audio/sfx";
 import { wrap } from "../src/render/cabinet";
 import { strategyRuleOrder } from "../src/ui/statsView";
+import { lineRules } from "../src/trainer/ruleText";
 import { loadPrefs, savePrefs } from "../src/ui/prefs";
 
 let host: EngineHost;
@@ -47,7 +48,7 @@ describe("deal check and grading", () => {
   it("strategy mode: green / yellow (next rule) / red / off-strategy", () => {
     const { c } = check(H);
     const s = c.strategy!;
-    expect(s.ruleText).toBe("pair 2-T");
+    expect(s.ruleText).toBe("pair");
     expect(s.hold).toBe(mask(H, "7c 7d"));
     const g = (held: string) => gradeHold(c, held ? mask(H, held) : 0, "strategy", 0);
     expect(g("7c 7d")).toMatchObject({ correct: true, color: "green", distance: 0, cost: 0 });
@@ -57,7 +58,7 @@ describe("deal check and grading", () => {
     expect(g("7c 7d Ah")).toMatchObject({ color: "red", distance: null });
     expect(g("")).toMatchObject({ color: "red" }); // discard everything: last matching rule
     // Distances are positions in the per-hand list, not in the printed strategy.
-    expect(s.matching.map((m) => m.text)).toEqual(["pair 2-T", "2 high cards suited prefer low", "2 high cards prefer low", "1 high card prefer low", "discard everything"]);
+    expect(s.matching.map((m) => m.text)).toEqual(["pair", "2 high cards suited prefer low", "2 high cards prefer low", "1 high card", "discard everything"]);
   });
 
   it("pure EV: right within the grace margin, scaled with bet", () => {
@@ -123,7 +124,7 @@ describe("trainer flow", () => {
     expect(t.gate(held("Ah Kh"))).toBe("block");
     expect(t.lesson).toEqual({ message: "NOT THE BEST HOLD - TRY AGAIN", hint: null });
     expect(t.gate(held("Ah"))).toBe("block");
-    expect(t.lesson?.message).toBe("USE: PAIR, 10 OR LOWER");
+    expect(t.lesson?.message).toBe("USE: PAIR");
     expect(t.gate(held(""))).toBe("block");
     expect(t.lesson).toEqual({ message: "HOLD THE MARKED CARDS", hint: c.strategy!.hold });
     expect(t.gate(held("Ah Kh"))).toBe("block");
@@ -151,7 +152,7 @@ describe("trainer flow", () => {
     expect(recs).toHaveLength(0);
     await arrive();
     expect(recs).toHaveLength(1);
-    expect(t.feedback).toMatchObject({ color: "yellow", title: "CLOSE", rule: "pair 2-T" });
+    expect(t.feedback).toMatchObject({ color: "yellow", title: "CLOSE", rule: "pair" });
     expect(t.feedback!.cost).toBeGreaterThan(0);
   });
 
@@ -227,7 +228,8 @@ describe("stats", () => {
     expect(a.results).toEqual({ "No win": 2, "Two Pair": 1 });
     expect(a.deviations).toBe(2);
     expect(a.distance).toMatchObject({ "0": 1, "1": 1, off: 1 });
-    expect(a.rules.s["pair 2-T"]).toEqual({ opportunities: 3, misses: 2 });
+    // JoB 9/6 beginner: "pair 2-T" reads "pair" since the simplification pass.
+    expect(a.rules.s["pair"]).toEqual({ opportunities: 3, misses: 2 });
     const best = c.evs[c.best];
     expect(a.lossVsOptimal).toBeCloseTo(3 * best - ev("7c 7d") - ev("Ah Kh") - ev("7c 7d Ah"), 12);
     expect(a.strategyLoss).toBeCloseTo(3 * (best - c.evs[s.hold]), 12);
@@ -259,6 +261,50 @@ describe("stats", () => {
     await s4.load();
     expect(s4.book.lifetime.hands).toBe(0);
     expect(reviveAgg(null)).toBeNull();
+  });
+});
+
+describe("per-rule stats after a list is reworded", () => {
+  const key = "bonus-poker-6-5/beginner";
+  it("carries old tallies to the rule that now decides those hands", () => {
+    const a = emptyAgg(0);
+    a.rules[key] = {
+      "4 to a flush h=2": { opportunities: 3, misses: 1 },
+      "4 to a flush h=1": { opportunities: 5, misses: 2 },
+      "4 to a flush h=0": { opportunities: 1, misses: 0 },
+      "pair J-A": { opportunities: 7, misses: 0 },
+    };
+    a.rules["bonus-poker-6-5/custom"] = { "4 to a flush h=2": { opportunities: 2, misses: 2 } };
+    expect(RULE_RENAMES[key]["4 to a flush h=1"]).toBe("4 to a flush");
+    expect(migrateRuleTexts(a)).toBe(true);
+    expect(a.rules[key]).toEqual({ "4 to a flush": { opportunities: 9, misses: 3 }, "pair J-A": { opportunities: 7, misses: 0 } });
+    // Custom strategies keep their own wording; a second run moves nothing.
+    expect(a.rules["bonus-poker-6-5/custom"]).toEqual({ "4 to a flush h=2": { opportunities: 2, misses: 2 } });
+    expect(migrateRuleTexts(a)).toBe(false);
+  });
+  it("adds to tallies already saved under the new wording, and runs on load", async () => {
+    const kv = new MemoryKv();
+    const saved = emptyAgg(0);
+    saved.rules[key] = { "3 to a royal h=2": { opportunities: 4, misses: 1 }, "3 to a royal": { opportunities: 6, misses: 1 } };
+    await kv.set("lifetime", saved);
+    const s = new Stats(kv, 0);
+    await s.load();
+    expect(s.book.lifetime.rules[key]).toEqual({ "3 to a royal": { opportunities: 10, misses: 2 } });
+    await s.flush();
+    expect(((await kv.get("lifetime")) as typeof saved).rules[key]).toEqual({ "3 to a royal": { opportunities: 10, misses: 2 } });
+  });
+  it("only renames to rules the shipped lists use", async () => {
+    for (const [k, map] of Object.entries(RULE_RENAMES)) {
+      const [table, tier] = k.split("/");
+      const rules = (await loadPresetStrategy(table, tier as never))
+        .split("\n")
+        .flatMap((l) => lineRules(l.replace(/#.*/, "")))
+        .filter(Boolean);
+      for (const [from, to] of Object.entries(map)) {
+        expect(rules, `${k}: ${to}`).toContain(to);
+        expect(rules, `${k}: ${from}`).not.toContain(from);
+      }
+    }
   });
 });
 
