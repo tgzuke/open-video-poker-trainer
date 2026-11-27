@@ -93,6 +93,37 @@ those choices have exactly equal EV they are equivalent (SPEC §3.1).
 Otherwise the analyzer reports the hand as **ambiguous**. No generated
 strategy has ambiguous hands.
 
+## Simplification
+
+Every generated list is written in the plainest wording that plays every
+hand **identically**. A qualifier is left out when it changes no hold:
+
+- **by definition:** a 3-card royal draw always has 2 or 3 high cards, so
+  `3 to a royal h=2` followed by `3 to a royal` is just `3 to a royal`;
+- **by position:** once every 3 to a royal has been taken above, a 4-flush
+  left over can't have 3 high cards, so `4 to a flush h=2`, `h=1`, `h=0`
+  in a row is just `4 to a flush`. Likewise `4 to a straight w=1 h=3`
+  reads `4 to a straight h=3` below the outside straights: read a rule as
+  "of the hands still left at this line".
+
+Nothing is listed by hand. Each rewrite (drop a qualifier; collapse rules
+that differ only in one qualifier's value; merge a rule into a plainer
+copy of itself below) is checked by exact enumeration and kept only if
+every one of the ~134k hand classes gets the **identical hold** (an
+equal-EV hold doesn't count), no rule is left with a new tie, and the list
+needs no more lines. The fewest qualifiers win, then the shortest text,
+then the fewest lines. Return and loss are unchanged to the last digit.
+
+Qualifiers this can drop: `w=`, `h=`, `fp`, `sp`, `prefer low`, a rank set
+on pairs, trips and quads, and `suited`/`unsuited` on `N high cards`. The
+suitedness of exact cards (`KQ suited`) is part of the rule's name and stays.
+
+`ovp strategy simplify FILE... [--renames strategies/rule-renames.json]`
+rewrites lists in place and re-scores them (no regeneration). The renames
+file maps each shipped list's old rule text to the rule that now decides
+those hands, so the game carries saved per-rule stats over. Your own
+strategies are never rewritten.
+
 ## Your own strategies
 
 The strategy editor (Menu > Strategy editor) saves one strategy of your

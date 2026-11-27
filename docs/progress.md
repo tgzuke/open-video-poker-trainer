@@ -697,3 +697,109 @@ except DB 9/6/4 (0.001036 → 0.001199, 30 → 24 lines); expert lists are
 
 ### For playtesting
 - The " / " separator on the strategy screen; long merged lines on Expert.
+
+## Milestone A: strategy simplification pass (owner request, 2026-11-27)
+
+### What was built
+- `engine/src/strategy/simplify.rs`: `simplify(an, strategy)`. It builds
+  one table of how every hand class meets every rule of the list, and every
+  version of each rule with qualifiers left out. Then it repeats until
+  nothing changes: try every one-step rewrite (drop one qualifier or all of
+  them; collapse a run of siblings that differ only in one qualifier's value;
+  remove a rule that a plainer copy of itself below covers, or move the
+  plainer copy up), and keep the best one that plays **every class with the
+  identical hold** and leaves no new tie. Best means fewest qualifiers, then
+  shortest text, then fewest lines, never more lines than before. Then it
+  drops duplicate rules and runs `compact`, repeating until stable.
+- `generate()` calls it before its final compaction, so new generations
+  come out simplified.
+- `ovp strategy simplify FILE... [-p TABLE] [--renames JSON]` rewrites
+  lists in place. It re-scores rather than regenerates, refuses any change
+  of hold or return, and checks that the `return`/`loss` header lines are
+  byte-identical.
+- All 60 shipped lists rewritten. The pre-simplification lists are kept as
+  test fixtures in `engine/tests/data/pre-simplify/`.
+- **Per-rule stats are migrated, not reset.** `strategies/rule-renames.json`
+  (written by the CLI) maps each shipped list's old rule text to the rule
+  that now decides most of those hands, by deals. On load, the game adds the
+  old tallies to the new rule (summing when several old rules became one)
+  and saves. Custom strategies are untouched. Note: if an old rule's hands
+  now split across two new rules, its whole tally goes to the one that
+  decides most of them.
+- `docs/strategy-format.md` has a new "Simplification" section; SPEC §4.3
+  has a matching bullet. (The request said §3 for strategy notation; the
+  strategy layer is §4 in SPEC.md, so that's where it went.)
+- Not done (optional): a "Simplify" button in the strategy editor.
+
+### Before → after (rule text)
+| List | Before | After |
+|---|---|---|
+| BP 6/5 beginner | `3 to a royal h=2` / `3 to a royal, 4 to a flush h=2, 4 to a flush h=1, 4 to a flush h=0` | `3 to a royal` / `4 to a flush` |
+| BP 6/5 beginner | `4 to a straight w=1 h=4`, `2 high cards suited prefer low`, `2 high cards unsuited prefer low`, `1 high card prefer low` | `4 to a straight h=4`, `2 high cards suited`, `2 high cards prefer low`, `1 high card` |
+| JoB 9/6 beginner | `pair 2-T` (below `pair J-A`) | `pair` |
+| JoB 9/6 beginner | `4 to a straight w=1 h=3`, `3 to a straight flush w=1 h=1`, `1 high card prefer low`, `3 to a straight flush h=0` | `4 to a straight h=3`, `3 to a straight flush h=1`, `1 high card`, `3 to a straight flush` |
+| JoB 9/6 intermediate | `3 to a straight flush w=3 fp=0`, `4 to a straight w=1 h=4`, `2 high cards suited prefer low`, `3 to a straight flush w=1 h=0` | `3 to a straight flush w=3`, `4 to a straight h=4`, `2 high cards suited`, `3 to a straight flush` |
+| DDB 9/6 beginner | `4 to a straight w=1 h=4`, `w=1 h=3`, `w=1 h=2`, `w=1 h=0`, `2 high cards suited prefer low` | `4 to a straight h=4`, `h=3`, `h=2`, `4 to a straight`, `2 high cards suited` |
+| every list | `royal flush, straight flush, four of a kind` / `full house, 4 to a royal` | `royal flush, straight flush, four of a kind, full house` / `4 to a royal` (re-grouped by `compact`; same line count) |
+
+Qualifiers removed, all 20 tables per tier:
+| Tier | Before | After | Removed |
+|---|---|---|---|
+| Beginner | 312 | 214 | 98 (31%) |
+| Intermediate | 586 | 384 | 202 (34%) |
+| Expert | 1294 | 701 | 593 (46%) |
+
+Lines: beginner and intermediate unchanged (400 and 492). Expert lists
+went from 673 to 668 lines in total.
+
+### Verified
+- `engine/tests/simplify.rs`:
+  - BP 6/5 beginner simplifies to exactly `3 to a royal` / `4 to a flush`,
+    with the identical hold for every class.
+  - For all 60 lists, the shipped list is exactly `simplify(original)`, with
+    an identical hold for every class, identical exact return, and complete.
+    Line count is ≤ the original and within the cap, qualifiers never
+    increase, the merged-line invariant holds on every class, the pass is
+    idempotent, and the text round-trips.
+  - Regression check: every one-step rewrite still possible on a shipped
+    list (drop any qualifier, collapse any sibling run, merge into a plainer
+    copy below) either changes some hold, needs more lines, or leaves a tie.
+    Holds are computed independently in the test, straight from the rule
+    matcher.
+  - The rename table only points at rules that exist in the current lists.
+- All existing Rust suites pass unchanged (shipped-list checks, siblings,
+  dead rules, merged lines). Engine total: 3 min 9 s on 10 cores.
+- App: 67 tests pass. Three new tests cover the stats migration (merging
+  tallies, custom strategies untouched, runs on load and saves, idempotent).
+  JoB 9/6 beginner expectations were updated from `pair 2-T` to `pair`;
+  no assertion logic changed.
+- The CLI run checks that `return` and `loss` header lines are
+  byte-identical for all 60 lists. A second run over the simplified lists
+  changes nothing.
+
+### Performance
+- Simplify pass alone: **64.6 s for all 60 original lists** (about 1.1 s
+  each, native, 10 cores); 28.9 s over the already-simplified lists. With
+  loading and two exact re-scorings per list, 150 s in total.
+- In the browser (custom-table generation), the pass is single-threaded,
+  so expect a few seconds more per generated list.
+
+### For the owner's decision
+- **Tables with freed lines** (none refilled, as asked). All are Expert:
+  DB 10/7 (39 → 38), DB 9/6 (36 → 34), DB 9/7 (40 → 39), DDB 6/5
+  (34 → 33). Only DB 9/7 expert was at its 40-line cap. The others had
+  already stopped short because no remaining rule was worth a line. So a
+  regeneration could only help DB 9/7 expert, by at most one rule.
+- **Positional wording.** `w=1` (inside straight) is also dropped where
+  outside straights are already taken above, so `4 to a straight w=1 h=3`
+  reads `4 to a straight h=3` (the game shows "4 to a straight, 3 high
+  cards" instead of "4 to an inside straight, 3 high cards"). It plays the
+  same, but "inside" is a word players know. If you'd rather keep it, I can
+  make `w=` on 4-card straights exempt.
+- Exact-card rules keep `suited`/`unsuited` (`KQ suited`): the parser
+  requires it, and allowing a bare `KQ` would change the rule language.
+
+### For playtesting
+- Read a few simplified lists in the strategy screen. Rules are now meant
+  positionally ("of the hands left at this line"); check that this reads
+  naturally.
