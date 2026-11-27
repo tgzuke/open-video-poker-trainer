@@ -1,6 +1,6 @@
 # Open Video Poker Trainer — Project Spec
 
-**Status:** pre-alpha · **License:** MIT (switching to GPL is acceptable if a needed dependency or asset requires it) · **Repo:** private until the public itch.io release
+**Status:** pre-alpha · **License:** MIT (switching to GPL is acceptable if a needed dependency or asset requires it) · **Repo:** public
 
 ## 1. Vision
 
@@ -158,11 +158,15 @@ Also tracked:
 ### 6.1 Look
 - Inspired by **older-era bartop machines**: deep blue play field, yellow/red/white pay table, chunky pixel lettering, pay table line highlighted on a win, a "HELD" indicator, and credit and bet meters.
 - **Original assets only.** Use vector-rendered pixel art (SVG or canvas drawn from code) so it scales crisply. Fonts must be open-licensed (e.g., OFL) or drawn by us. No IGT or other trademarked art, fonts or sounds.
+- **Skins.** Card faces, card backs and the sound pack are three independent parts; a **theme** bundles one of each, and the player can mix parts (Settings › Cards & sound, with live previews). Two themes ship:
+  - **Default** (for new players): pixel art on a finer grid (half a logical pixel, closer to 16-bit), shaded suits, procedurally generated court portraits loosely after the old English pattern (our own drawings), an original ornate Ace of Spades, and procedurally generated card backs symmetric under a half turn (the default in the cabinet's red/blue/yellow). Its sound pack adds the payout trill (§6.2).
+  - **Basic**: the original 8-bit cards and chiptune sounds, unchanged.
+  - Skins are code, not image files, and stay original: no tracing or copying of commercial decks' court art, aces or wordmarks.
 - Target 16:9, full screen. Not designed for phones.
 - **Game names:** generic labels by default ("Jacks+ Poker", "Bonus", "Double Bonus", "Double Double Bonus"…). The player can rename labels in Settings.
 
 ### 6.2 Sound
-Simple chiptune-style sound effects, synthesized with the Web Audio API so there are no licensing issues: deal, hold, draw, win and credit count-up. **Default: muted.**
+Sound effects synthesized with the Web Audio API, so there are no licensing issues: deal, hold, draw, win and credit count-up. No recorded or copied machine audio. **Default: muted** (no audio context is created while muted). The Basic pack is simple chiptune; the Default pack uses bell-like FM tones and a **payout trill**: while a win counts up into the credit meter, a fast two-note bell ringing (about 20 notes per second) plays for exactly as long as the count-up, brighter for big wins, with a fanfare for the royal. A bet or deal during the count-up cuts it off at once. Sound never delays input. Rates, pitches and timbre live in `app/src/config/skins.ts`.
 
 ### 6.3 Speed
 Animation and credit count-up speed are controlled by a slider. **Default: fast.** The game must comfortably sustain one hand every 2 seconds or faster, and keyboard input must never wait on an animation.

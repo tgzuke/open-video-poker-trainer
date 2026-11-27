@@ -803,3 +803,151 @@ went from 673 to 668 lines in total.
 - Read a few simplified lists in the strategy screen. Rules are now meant
   positionally ("of the hands left at this line"); check that this reads
   naturally.
+
+## Milestone B: skins and the new "default" theme (owner request, 2026-11-27)
+
+### What was built
+- **Skin system** (`app/src/skins/`). A skin has three independent parts:
+  `faces`, `backs` and `sounds` (the `Sfx` cues). A **theme** bundles one of
+  each. A registry looks parts up by id. An unknown id falls back to the
+  theme's part, and an unknown theme to Default. The cabinet only calls
+  `cards.face(...)` / `cards.back(...)` and never draws cards itself. Each
+  skin picks its own colours (the `P.card*` entries left the cabinet
+  palette).
+- **Basic theme:** the old card drawing and sounds, moved out of
+  `render/cabinet.ts` and `audio/sfx.ts` unchanged.
+- **Default theme** (new players get it, and so do saved prefs from before
+  themes):
+  - Art on a 128×176 grid (half a logical pixel). It's drawn with a new
+    `Pix.paletteBitmap` (rows of palette keys, runs merged) and a small
+    deterministic rasterizer (`skins/raster.ts`). The rasterizer
+    supersamples simple shapes, so edges get a hand-placed-looking
+    in-between tone.
+  - Suits redrawn at the finer grid, with a one-tone highlight and shadow.
+    New bold rank glyphs.
+  - **Court cards:** procedural portraits made of parts: hair, robe with a
+    patterned panel, collar (ermine, ruff or square), face, crown or plumed
+    cap, held object. Parts depend on rank and suit; a seeded generator
+    picks colours and the robe pattern. Kings are crowned and bearded and
+    hold a sword, axe or orb. Queens hold a flower. Jacks wear caps and hold
+    a halberd, leaf or arrow. Old English-pattern quirks, drawn our own way:
+    the K♥ sword behind the head, the K♦ axe in profile, one-eyed J♠ and J♥.
+  - **Ace of Spades:** a large shaded spade with a gold inset outline and a
+    blue gem, a sunburst, gold scrolls, a red ribbon with three stars, and
+    red/blue/yellow diamonds. The other aces use the number-card layout.
+  - **Six card backs**, each with its own palette: Diamond lattice (the
+    default, red/blue/yellow), Deco sunburst, Argyle, Night sky, Interlace
+    and Chip rack, plus Basic's Classic. Each is folded through the
+    centre, so it is exactly symmetric under a half turn, and has a white
+    border.
+  - **Default sounds:** bell-like FM tones. The **payout trill** replaces
+    Basic's count-up ticks (not layered over them; two ringing sounds at
+    once blur together). It alternates two close pitches at 20 notes per
+    second and runs for exactly the count-up, so it scales with win size
+    and the speed slider. Big wins are a step higher and faster, the royal
+    opens with a rising fanfare, and at instant speed it plays one ding. A
+    bet or deal cuts it off (`Sfx.cancelPayout`: notes stopped, payout bus
+    disconnected).
+- **Prefs:** `theme`, `faces`, `backs`, `sounds`, saved through the existing
+  guarded localStorage path. Picking a theme sets all three; changing one
+  afterwards shows "Custom (mixed)".
+- **Settings › Cards & sound:** a Theme picker, Card faces (with a live
+  A♠ K♥ Q♣ J♦ 10♠ preview), Card backs (a thumbnail of every back,
+  keyboard-selectable, focus kept across re-renders), Sounds, and a "Play
+  sample" button per pack. Samples play even with sound off. Changes apply
+  at once and are saved.
+- **Performance design:**
+  - The Default art (about 0.3 s for all 52 faces and 6 backs) is generated
+    in a **Web Worker** at startup.
+  - The main thread then pre-renders each card once per screen scale into
+    an offscreen canvas, one card per idle slice (≤ 1.4 ms each), and
+    blits it.
+  - During a flip, the cached image is squeezed horizontally, which looks
+    like a card turning.
+  - The cache is dropped on resize (scale change) or skin change, and
+    capped at about 48 MB.
+  - Basic still draws directly, exactly as before.
+
+### Verified
+- **Basic is unchanged:** a golden test (`test/render.test.ts`) records
+  every fillRect the cabinet makes. It covers all 52 faces, backs, nine
+  points of the deal animation (including mid-flip widths), Free Play and
+  Practice, at 1280×720 and 1920×1080. The hash was recorded from the
+  pre-skin renderer and committed before the refactor
+  (`0948e80`); it still matches.
+- `test/skins.test.ts` (16 tests):
+  - Every face skin draws all 52 cards, at full and three flip widths,
+    inside the card. Every back draws inside the card at five widths.
+  - The six procedural backs are 180°-symmetric, distinct, and have a
+    white border. The default back uses #c81818 / #1830c8 / #ffd800.
+  - Portraits are deterministic (same seed, same pixels) and all 12 are
+    distinct; a different seed gives a different variation.
+  - The A♠ has its own ornament; the other aces don't.
+  - Index legibility: ink against the face is ≥ 4.5:1 contrast (WCAG AA)
+    for every skin and suit, and every Default index has ink in the corner.
+  - Cache: one render per card per scale; blits, squeezes mid-flip, drops
+    on resize and on skin change; Basic is never cached.
+  - Prefs: old prefs get the default theme; a mixed choice round-trips;
+    unknown ids fall back to the theme's part; "Custom (mixed)" logic.
+  - Sounds (mocked AudioContext):
+    - Every trill note starts and ends inside the count-up window, with
+      the configured rate and pitches.
+    - Big wins and the royal sound different.
+    - `cancelPayout` stops every scheduled note, and the game calls it on
+      a bet and on a deal.
+    - Muted: no AudioContext is ever created.
+    - The Basic pack schedules exactly the original notes and times.
+- All 84 app tests pass; typecheck and production build pass (the art
+  worker is bundled).
+- **In Chrome** (screenshots below):
+  - Checked: game screen and Settings in both themes, deal animation
+    frames, the 52-card sheet and all backs.
+  - Theme and part choices persist across reloads, and keyboard selection
+    in the backs row works.
+  - Played several hands by keyboard with sound on (one AudioContext).
+  - Console clean.
+
+![Default theme](images/game-default.jpg)
+![Basic theme](images/game-basic.jpg)
+![Settings, Default](images/skins-settings-default.jpg)
+![Settings, Basic](images/skins-settings-basic.jpg)
+![Deal: a face mid-flip](images/deal-flip-face-default.jpg)
+![Deal: a back mid-flip](images/deal-flip-back-default.png)
+
+### Performance (Chrome, Retina, device scale 4.98; 30 hands, one per second, speed "fast")
+| | Frame avg | Frame worst | Input → frame (avg / max) |
+|---|---|---|---|
+| Basic (same draw calls as before skins) | 1.15 ms | 2.7 ms | 15.5 / 18.9 ms |
+| Default, straight after switching theme | 1.08 ms | 2.3 ms | 14.2 / 18.0 ms |
+| Default, warm cache | 1.07 ms | 1.7 ms | 15.5 / 18.1 ms |
+
+Input → frame is one display frame (60 Hz). The Default theme is not
+slower than Basic: five blits replace about 50 rects per card. Art
+generation takes 307 ms in the worker, off the UI thread. A card render
+into the cache averages 0.42 ms (max 1.1 ms); a back takes 1.4 ms. "Before"
+is the Basic row: the golden test shows Basic issues exactly the draw calls
+of the pre-skin renderer.
+
+### Open questions
+- Number cards keep Basic's layout (one large suit), as asked. Traditional
+  pip layouts (e.g. six spades on the 6) would be a different skin.
+- The "Simplify" button in the strategy editor (Milestone A, optional) is
+  not built.
+
+### For playtesting
+- **Portrait box position:** `ART_BOX` in `app/src/config/skins.ts`
+  (default top-right, 60% of the width, 92% of the height). Bottom-right
+  would be e.g. `{ x: 0.36, y: 0.2, w: 0.6, h: 0.76 }`.
+- **Back choice:** the Diamond lattice is the default; five alternatives are
+  in Settings.
+- **Payout trill** (`TRILL` in `app/src/config/skins.ts`): `rate` 20
+  notes/s; `pitches` 1568 / 1760 Hz (G6/A6); timbre `modRatio` 3.5,
+  `modIndex` 2.2, `detuneCents` 7, `decayMs` 110; `gain` 0.55; big-win
+  boost ×1.25 pitch, ×1.15 rate; royal fanfare notes, step 70 ms, played
+  twice; `dingMs` 180 at instant speed.
+- **Count-up and trill:** the trill starts when the drawn cards are face up
+  and ends with the count-up, so its length follows `SPEED_TABLE`
+  (`countPerSec`, `minCountMs`, `maxCountMs` in `config/feel.ts`). It
+  replaces Basic's ticks rather than layering over them. Basic's ticks
+  still start 200 ms after the win jingle, as before.
+- Mixed choice: a Default deck with Basic chiptune sounds, or the reverse.
