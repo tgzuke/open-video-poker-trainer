@@ -6,6 +6,8 @@ import { BUTTONS } from "../input/actions";
 import type { Keymap } from "../input/keyboard";
 import { DEFAULT_CHECKING, DEFAULT_GRACE, DEFAULT_MODE, DEFAULT_TIER, type Checking, type Mode } from "../config/trainer";
 import { LEVELS, type Level } from "../engine/protocol";
+import { DEFAULT_THEME } from "../config/skins";
+import { pickTheme } from "../skins/registry";
 
 export interface Prefs {
   paytableId: string;
@@ -26,6 +28,13 @@ export interface Prefs {
   grace: number;
   /** Strategy level the trainer checks against. */
   tier: Level;
+  /** Skin: the theme last picked, and the part chosen for each of faces,
+   *  backs and sounds (picking a theme sets all three). Ids are looked up
+   *  in skins/registry; an unknown id falls back to the theme's part. */
+  theme: string;
+  faces: string;
+  backs: string;
+  sounds: string;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -42,6 +51,7 @@ export const DEFAULT_PREFS: Prefs = {
   checking: DEFAULT_CHECKING,
   grace: DEFAULT_GRACE,
   tier: DEFAULT_TIER,
+  ...pickTheme(DEFAULT_THEME),
 };
 
 const KEY = "ovp.prefs.v1";
@@ -89,6 +99,9 @@ export function loadPrefs(store: Store | null): Prefs {
   if (r.checking === "strategy" || r.checking === "ev") p.checking = r.checking;
   if (typeof r.grace === "number" && Number.isFinite(r.grace) && r.grace >= 0) p.grace = r.grace;
   if (LEVELS.includes(r.tier as Level)) p.tier = r.tier as Level;
+  // Skins (saved prefs from before skins have none: the default theme).
+  if (typeof r.theme === "string") Object.assign(p, pickTheme(r.theme), { theme: r.theme });
+  for (const k of ["faces", "backs", "sounds"] as const) if (typeof r[k] === "string") p[k] = r[k] as string;
   return p;
 }
 

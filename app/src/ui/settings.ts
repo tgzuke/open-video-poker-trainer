@@ -8,6 +8,9 @@ import { keymapConflicts } from "../input/keyboard";
 import { LEVELS, type Catalog, type Level, type PayTableJson } from "../engine/protocol";
 import { CHECKING_NAMES, LEVEL_NAMES, MODE_NAMES, type Checking, type Mode } from "../config/trainer";
 import type { Prefs } from "./prefs";
+import { BACKS, FACES, MIXED, SOUNDS, THEMES, pickTheme, resolveSkin, themeLabel } from "../skins/registry";
+import { Pix } from "../render/pix";
+import { LAYOUT } from "../config/feel";
 
 export interface MenuHost {
   prefs: Prefs;
@@ -25,6 +28,29 @@ export interface MenuHost {
   showCompare(): void;
   /** Does the current pay table have a strategy of the player's own? */
   hasCustom(): boolean;
+  /** Plays a short sample of a sound pack (deal, hold, win trill). */
+  playSample(packId: string): void;
+}
+
+/** Sample hand for the card face preview: A♠ K♥ Q♣ J♦ 10♠ (suits 0 c, 1 d, 2 h, 3 s). */
+const SAMPLE_HAND: [number, number][] = [
+  [14, 3],
+  [13, 2],
+  [12, 0],
+  [11, 1],
+  [10, 3],
+];
+
+/** Draws into a preview canvas at `scale` CSS pixels per logical pixel. */
+function previewPix(canvas: HTMLCanvasElement, w: number, h: number, scale: number): Pix {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * scale * dpr);
+  canvas.height = Math.round(h * scale * dpr);
+  canvas.style.width = `${w * scale}px`;
+  canvas.style.height = `${h * scale}px`;
+  const p = new Pix(canvas.getContext("2d")!);
+  p.k = scale * dpr;
+  return p;
 }
 
 const SPEED_NAMES: Record<number, string> = { 1: "slow", 2: "medium", 3: "brisk", 4: "fast", 5: "instant" };
@@ -107,6 +133,9 @@ export class Menu {
         `<td><button data-remap="${b}" class="${this.waitingFor === b ? "waiting" : ""}">${this.waitingFor === b ? "press a key… (Esc cancels)" : "Change"}</button></td></tr>`,
     ).join("");
     const lock = this.host.canChangeTable() ? "" : "disabled";
+    const skin = resolveSkin(p);
+    // Keyboard focus survives the re-render.
+    const focused = (document.activeElement as HTMLElement | null)?.id;
     this.dlg.innerHTML = `
       <h2>MENU</h2>
       <h3>Game</h3>
@@ -133,6 +162,15 @@ export class Menu {
         <label><input id="m-sound" type="checkbox" ${p.muted ? "" : "checked"} /> Sound on</label>
         <label>Volume <input id="m-vol" type="range" min="0" max="1" step="0.05" value="${p.volume}" /></label>
       </div>
+      <h3>Cards &amp; sound</h3>
+      <label>Theme <select id="m-theme">${THEMES.map((t) => `<option value="${t.id}" ${themeLabel(p) === t.name ? "selected" : ""}>${esc(t.name)}</option>`).join("")}${themeLabel(p) === MIXED ? `<option value="" selected disabled>${MIXED}</option>` : ""}</select></label>
+      <label>Card faces <select id="m-faces">${FACES.map((f) => `<option value="${f.id}" ${f.id === skin.faces.id ? "selected" : ""}>${esc(f.name)}</option>`).join("")}</select></label>
+      <canvas id="m-faces-preview" class="preview" aria-label="Sample hand: ace of spades, king of hearts, queen of clubs, jack of diamonds, ten of spades"></canvas>
+      <div>Card backs</div>
+      <div class="backs" role="radiogroup" aria-label="Card backs">${BACKS.map((b) => `<button class="back ${b.id === skin.backs.id ? "on" : ""}" role="radio" aria-checked="${b.id === skin.backs.id}" data-back="${b.id}" id="m-back-${b.id}" title="${esc(b.name)}"><canvas data-back-preview="${b.id}"></canvas><span>${esc(b.name)}</span></button>`).join("")}</div>
+      <label>Sounds <select id="m-sounds">${SOUNDS.map((x) => `<option value="${x.id}" ${x.id === skin.sounds.id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label>
+      <div class="row">${SOUNDS.map((x) => `<button data-sample="${x.id}" id="m-sample-${x.id}">Play sample: ${esc(x.name)}</button>`).join("")}</div>
+      <div class="note">Picking a theme sets all three; changing one part afterwards shows "${MIXED}". Samples play even with the sound off.</div>
       <h3>Controls</h3>
       <table>${keys}</table>
       ${conflicts.length ? `<div class="warn">Same key on several buttons: ${conflicts.map(keyLabel).join(", ")}</div>` : ""}
@@ -224,6 +262,40 @@ export class Menu {
       this.host.resetCredits();
       this.render();
     };
+    // Cards & sound.
+    $<HTMLSelectElement>("m-theme").onchange = (e) => {
+      Object.assign(p, pickTheme((e.target as HTMLSelectElement).value));
+      this.host.apply(["theme", "faces", "backs", "sounds"]);
+      this.render();
+    };
+    $<HTMLSelectElement>("m-faces").onchange = (e) => {
+      p.faces = (e.target as HTMLSelectElement).value;
+      this.host.apply(["faces"]);
+      this.render();
+    };
+    $<HTMLSelectElement>("m-sounds").onchange = (e) => {
+      p.sounds = (e.target as HTMLSelectElement).value;
+      this.host.apply(["sounds"]);
+      this.render();
+    };
+    this.dlg.querySelectorAll<HTMLButtonElement>("[data-back]").forEach((btn) => {
+      btn.onclick = () => {
+        p.backs = btn.dataset.back!;
+        this.host.apply(["backs"]);
+        this.render();
+      };
+    });
+    this.dlg.querySelectorAll<HTMLButtonElement>("[data-sample]").forEach((btn) => {
+      btn.onclick = () => this.host.playSample(btn.dataset.sample!);
+    });
+    const C = LAYOUT.cards;
+    const faces = previewPix($<HTMLCanvasElement>("m-faces-preview"), 5 * C.w + 4 * 6, C.h, 1.5);
+    SAMPLE_HAND.forEach(([rank, suit], i) => skin.faces.draw(faces, i * (C.w + 6), 0, C.w, C.h, rank, suit));
+    this.dlg.querySelectorAll<HTMLCanvasElement>("[data-back-preview]").forEach((cv) => {
+      const b = BACKS.find((x) => x.id === cv.dataset.backPreview)!;
+      b.draw(previewPix(cv, C.w, C.h, 0.75), 0, 0, C.w, C.h);
+    });
+    if (focused) this.dlg.querySelector<HTMLElement>(`#${focused}`)?.focus();
     $("m-full").onclick = () => this.host.toggleFullscreen();
     $("m-close").onclick = () => this.dlg.close();
   }

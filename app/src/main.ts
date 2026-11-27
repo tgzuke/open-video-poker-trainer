@@ -26,6 +26,9 @@ import { screenButtonRects } from "./render/cabinet";
 import { isGameButton, type ButtonId } from "./input/actions";
 import { keyLabel } from "./ui/settings";
 import type { Level } from "./engine/protocol";
+import { resolveSkin, SOUNDS } from "./skins/registry";
+import { CardRenderer } from "./skins/cards";
+import { loadArtInWorker } from "./skins/default";
 
 const store = safeLocalStorage();
 const prefs = loadPrefs(store);
@@ -88,8 +91,18 @@ async function main() {
   await stats.load();
 
   resize();
-  const sfx = new Sfx(prefs.muted, prefs.volume);
+  const skin = resolveSkin(prefs);
+  const sfx = new Sfx(prefs.muted, prefs.volume, skin.sounds);
   const app = new GameApp(pix, loadTable(prefs.paytableId), prefs.progressive, prefs.credits, prefs.bet, prefs.speed, sfx);
+  app.setCards(new CardRenderer(skin.faces, skin.backs));
+  // Card art is generated in a worker; then each card is pre-rendered at
+  // this screen scale in small idle slices.
+  let artMs = 0;
+  void loadArtInWorker().then((ms) => {
+    artMs = ms;
+    app.cards.prewarm(pix.k);
+    app.request();
+  });
   let saveTimer = 0;
   const save = () => {
     clearTimeout(saveTimer);
@@ -129,6 +142,7 @@ async function main() {
     save();
   };
 
+  let sampleSfx: Sfx | null = null;
   const menu = new Menu(document.getElementById("menu") as HTMLDialogElement, {
     prefs,
     catalog,
@@ -148,7 +162,26 @@ async function main() {
         sfx.bet(); // audible feedback when turning sound on
       }
       if (changed.includes("keymap")) keyboard.setKeymap(prefs.keymap);
+      if (changed.some((k) => k === "theme" || k === "faces" || k === "backs" || k === "sounds")) {
+        const s = resolveSkin(prefs);
+        app.cards.setSkin(s.faces, s.backs);
+        app.cards.prewarm(pix.k);
+        sfx.pack = s.sounds;
+        app.request();
+      }
       save();
+    },
+    playSample(id) {
+      // A sample plays even with the sound off (the player asked for it).
+      const pack = SOUNDS.find((x) => x.id === id) ?? sfx.pack;
+      const sample = sampleSfx ?? (sampleSfx = new Sfx(false, prefs.volume || 0.35, pack));
+      sample.cancelPayout();
+      sample.pack = pack;
+      sample.volume = prefs.volume || 0.35;
+      sample.cards([0, 30, 60, 90, 120]);
+      setTimeout(() => sample.hold(true), 260);
+      setTimeout(() => sample.cards([0, 30]), 520);
+      sample.payout({ atMs: 620, durMs: 900, amount: 45, bet: 5, big: false, top: false });
     },
     resetCredits() {
       app.setCredits(STARTING_CREDITS);
@@ -298,12 +331,13 @@ async function main() {
   void loadTrainer();
   window.addEventListener("resize", () => {
     resize();
+    app.cards.prewarm(pix.k);
     app.request();
   });
   document.getElementById("loading")!.remove();
   app.request();
   // Exposed for automated latency checks in the browser.
-  (window as unknown as { ovp: unknown }).ovp = Object.assign(app, { trainerRef: trainer, statsRef: stats, prefsRef: prefs });
+  (window as unknown as { ovp: unknown }).ovp = Object.assign(app, { trainerRef: trainer, statsRef: stats, prefsRef: prefs, artMs: () => artMs });
 }
 
 main().catch((e) => {

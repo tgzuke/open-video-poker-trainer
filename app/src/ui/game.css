@@ -99,3 +99,10 @@ dialog#editor::backdrop, dialog#compare::backdrop { background: #0008; }
 #compare .lists li.added { color: #20c040; }
 #compare .lists li.removed { color: #ff6b6b; text-decoration: line-through; }
 #compare .lists li.moved { color: var(--yellow); }
+/* Cards & sound: live skin previews. */
+#menu canvas.preview { display: block; margin: 4px 0 8px; image-rendering: pixelated; }
+#menu .backs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+#menu .backs button.back { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; border: 2px solid transparent; background: #0b1440; color: inherit; font-size: 11px; }
+#menu .backs button.back.on { border-color: #ffd800; }
+#menu .backs button.back:focus-visible { outline: 2px solid #fff; }
+#menu .backs canvas { image-rendering: pixelated; }
