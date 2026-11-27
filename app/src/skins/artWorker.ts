@@ -1,7 +1,7 @@
-// Web Worker: generates the Default theme's card art (pure data: rows of
+// Web Worker: generates the Classic theme's card art (pure data: rows of
 // palette keys) off the UI thread, so the first deal never waits on it.
 import { BACKS } from "./art/backs";
-import { backArt, faceRows } from "./default";
+import { backArt, faceRows } from "./classic";
 
 export interface ArtReply {
   faces: [number, string[]][];

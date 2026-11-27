@@ -1,8 +1,9 @@
 // Card art and sound settings for the skins, for playtesting (CLAUDE.md:
 // change values, not code). See docs/progress.md "For playtesting".
 
-/** Theme for new players (and saved prefs from before themes). */
-export const DEFAULT_THEME = "default";
+/** Theme for new players (and saved prefs from before themes): Basic.
+ *  The finer-grid "Classic" theme is the alternative. */
+export const DEFAULT_THEME = "basic";
 
 /** Basic theme colours (the original cards). */
 export const BASIC_COLORS = {
@@ -14,18 +15,18 @@ export const BASIC_COLORS = {
   suitBlack: "#101010",
 };
 
-/** Default theme, court cards and the A♠: the corner art box, as
+/** Classic theme, court cards and the A♠: the corner art box, as
  *  fractions of the card's width/height. Default: upper right, opposite
  *  the index, above the large suit (as on real machines). The bust is
  *  pixel art on a 36×40 grid, so sizes that are multiples of it (here
  *  2×: 72×80 art pixels) keep every pixel square. */
 export const ART_BOX = { x: 50 / 128, y: 6 / 176, w: 72 / 128, h: 80 / 176 };
 
-/** Default theme art grid: art pixels per logical pixel (2 = a 128×176
+/** Classic theme art grid: art pixels per logical pixel (2 = a 128×176
  *  grid on a 64×88 card). */
 export const ART_SCALE = 2;
 
-/** Default theme colours, by palette key (single characters, used by the
+/** Classic theme colours, by palette key (single characters, used by the
  *  art code). Reds, blues and yellows come from the cabinet's scheme. */
 export const FACE_PALETTE: Record<string, string> = {
   // card
@@ -70,7 +71,7 @@ export const FACE_PALETTE: Record<string, string> = {
   q: "#b78800", // box frame
 };
 
-/** Payout trill (Default sound pack): a fast, bell-like two-note ringing
+/** Payout trill (Classic sound pack): a fast, bell-like two-note ringing
  *  that lasts exactly as long as the credit count-up. */
 export const TRILL = {
   /** Notes per second (real machines: roughly 15–25). */

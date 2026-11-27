@@ -3,18 +3,18 @@
 // theme's part (and an unknown theme to the default theme).
 import { DEFAULT_THEME } from "../config/skins";
 import { BASIC_BACK, BASIC_FACES, BASIC_SOUNDS } from "./basic";
-import { DEFAULT_BACKS, DEFAULT_FACES } from "./default";
-import { DEFAULT_BACK } from "./art/backs";
-import { DEFAULT_SOUNDS } from "./sounds";
+import { CLASSIC_BACKS, CLASSIC_FACES } from "./classic";
+import { CLASSIC_BACK } from "./art/backs";
+import { CLASSIC_SOUNDS } from "./sounds";
 import type { BackSkin, FaceSkin, SoundPack, Theme } from "./types";
 
-export const FACES: FaceSkin[] = [DEFAULT_FACES, BASIC_FACES];
-export const BACKS: BackSkin[] = [...DEFAULT_BACKS, BASIC_BACK];
-export const SOUNDS: SoundPack[] = [DEFAULT_SOUNDS, BASIC_SOUNDS];
+export const FACES: FaceSkin[] = [BASIC_FACES, CLASSIC_FACES];
+export const BACKS: BackSkin[] = [BASIC_BACK, ...CLASSIC_BACKS];
+export const SOUNDS: SoundPack[] = [BASIC_SOUNDS, CLASSIC_SOUNDS];
 
 export const THEMES: Theme[] = [
-  { id: "default", name: "Default", faces: DEFAULT_FACES.id, backs: DEFAULT_BACK, sounds: DEFAULT_SOUNDS.id },
   { id: "basic", name: "Basic", faces: BASIC_FACES.id, backs: BASIC_BACK.id, sounds: BASIC_SOUNDS.id },
+  { id: "classic", name: "Classic", faces: CLASSIC_FACES.id, backs: CLASSIC_BACK, sounds: CLASSIC_SOUNDS.id },
 ];
 
 export const MIXED = "Custom (mixed)";
@@ -47,6 +47,20 @@ export function resolveSkin(c: Partial<SkinChoice>): Skin {
     backs: byId(BACKS, c.backs) ?? byId(BACKS, t.backs)!,
     sounds: byId(SOUNDS, c.sounds) ?? byId(SOUNDS, t.sounds)!,
   };
+}
+
+/** Ids used before the rename ("Default" became "Classic", and Basic's
+ *  back, once called "classic", became "basic"), per part. */
+const LEGACY: Record<keyof SkinChoice, Record<string, string>> = {
+  theme: { default: "classic" },
+  faces: { default: "classic" },
+  backs: { classic: "basic" },
+  sounds: { default: "classic" },
+};
+
+/** A saved id, carried over from its old name if it was renamed. */
+export function currentId(part: keyof SkinChoice, id: string): string {
+  return LEGACY[part][id] ?? id;
 }
 
 /** The choice that picking a theme makes: all three of its parts. */

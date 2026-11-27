@@ -5,8 +5,8 @@ import { LAYOUT } from "../src/config/feel";
 import { TRILL } from "../src/config/skins";
 import { BACKS, FACES, MIXED, SOUNDS, THEMES, pickTheme, resolveSkin, themeLabel } from "../src/skins/registry";
 import { BASIC_SOUNDS } from "../src/skins/basic";
-import { DEFAULT_SOUNDS, payoutNotes } from "../src/skins/sounds";
-import { ART_H, ART_W, INDEX, faceRows } from "../src/skins/default";
+import { CLASSIC_SOUNDS, payoutNotes } from "../src/skins/sounds";
+import { ART_H, ART_W, INDEX, faceRows } from "../src/skins/classic";
 import { BACKS as DESIGNS, backRaster } from "../src/skins/art/backs";
 import { courtPlan, courtRaster } from "../src/skins/art/court";
 import { CardRenderer, type Surface } from "../src/skins/cards";
@@ -69,8 +69,8 @@ describe("card skins", () => {
       expect(rows.map((r) => r[3]).slice(10, -10).join(""), d.id).toMatch(/^f+$/);
     }
     expect(seen.size).toBe(DESIGNS.length);
-    // The default back uses the cabinet's red, blue and yellow.
-    const def = DESIGNS.find((d) => d.id === THEMES[0].backs)!;
+    // The Classic theme's back uses the cabinet's red, blue and yellow.
+    const def = DESIGNS.find((d) => d.id === THEMES.find((t) => t.id === "classic")!.backs)!;
     expect(Object.values(def.palette)).toEqual(expect.arrayContaining(["#c81818", "#1830c8", "#ffd800"]));
   });
 
@@ -128,7 +128,7 @@ describe("card skins", () => {
       made.push(ctx);
       return { width: w, height: h, getContext: () => ctx as unknown as CanvasRenderingContext2D };
     };
-    const s = resolveSkin(pickTheme("default"));
+    const s = resolveSkin(pickTheme("classic"));
     const cards = new CardRenderer(s.faces, s.backs, surface);
     const screen = new RecordingCtx();
     const p = new Pix(screen as unknown as CanvasRenderingContext2D);
@@ -161,12 +161,22 @@ describe("themes and prefs", () => {
     return { m, getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
   };
 
-  it("new players and old saved prefs get the default theme", () => {
-    expect(DEFAULT_PREFS).toMatchObject({ theme: "default", faces: "default", backs: "lattice", sounds: "default" });
+  it("new players and old saved prefs get the default theme (Basic)", () => {
+    expect(DEFAULT_PREFS).toMatchObject({ theme: "basic", faces: "basic", backs: "basic", sounds: "basic" });
     const s = store();
     s.m.set("ovp.prefs.v1", JSON.stringify({ paytableId: "bonus-poker-8-5", speed: 3, muted: false })); // saved before skins
     const p = loadPrefs(s);
-    expect(p).toMatchObject({ paytableId: "bonus-poker-8-5", theme: "default", faces: "default", backs: "lattice", sounds: "default" });
+    expect(p).toMatchObject({ paytableId: "bonus-poker-8-5", theme: "basic", faces: "basic", backs: "basic", sounds: "basic" });
+  });
+
+  it("choices saved under the old names carry over (Default became Classic)", () => {
+    const s = store();
+    s.m.set("ovp.prefs.v1", JSON.stringify({ theme: "default", faces: "default", backs: "classic", sounds: "default" }));
+    const p = loadPrefs(s);
+    expect(p).toMatchObject({ theme: "classic", faces: "classic", backs: "basic", sounds: "classic" });
+    expect(themeLabel(p)).toBe(MIXED); // the Classic deck with Basic's back
+    s.m.set("ovp.prefs.v1", JSON.stringify({ theme: "default", faces: "default", backs: "lattice", sounds: "default" }));
+    expect(themeLabel(loadPrefs(s))).toBe("Classic");
   });
 
   it("saves and restores the choice, including a mixed one", () => {
@@ -185,10 +195,10 @@ describe("themes and prefs", () => {
     const p = loadPrefs(s);
     const skin = resolveSkin(p);
     expect(skin.faces.id).toBe("basic");
-    expect(skin.backs.id).toBe("classic");
+    expect(skin.backs.id).toBe("basic");
     expect(skin.sounds.id).toBe("basic");
-    // An unknown theme falls back to the default theme.
-    expect(resolveSkin({ theme: "neon" }).faces.id).toBe("default");
+    // An unknown theme falls back to the default theme (Basic).
+    expect(resolveSkin({ theme: "neon" }).faces.id).toBe("basic");
     expect(themeLabel({ theme: "basic", faces: "no-such-faces" })).toBe("Basic");
   });
 
@@ -260,7 +270,7 @@ class MockAudio {
   resume() {}
 }
 
-function mockSfx(pack = DEFAULT_SOUNDS, muted = false) {
+function mockSfx(pack = CLASSIC_SOUNDS, muted = false) {
   const ac = new MockAudio();
   let made = 0;
   const sfx = new Sfx(muted, 0.5, pack, () => {
@@ -330,7 +340,7 @@ describe("sound packs", () => {
   });
 
   it("muted: no AudioContext is ever created", () => {
-    const { sfx, made } = mockSfx(DEFAULT_SOUNDS, true);
+    const { sfx, made } = mockSfx(CLASSIC_SOUNDS, true);
     sfx.cards([0, 30]);
     sfx.hold(true);
     sfx.bet();

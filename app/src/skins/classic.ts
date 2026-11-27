@@ -1,4 +1,4 @@
-// Default theme cards: a finer pixel grid (half a logical pixel; 128×176
+// Classic theme cards: a finer pixel grid (half a logical pixel; 128×176
 // art pixels on a 64×88 card), shaded suits, procedural court portraits,
 // an original Ace of Spades, and procedural backs.
 import { ART_BOX, ART_SCALE, FACE_PALETTE } from "../config/skins";
@@ -103,9 +103,9 @@ export function faceArt(rank: number, suit: number): string[] {
   return rows;
 }
 
-export const DEFAULT_FACES: FaceSkin = {
-  id: "default",
-  name: "Default (16-bit)",
+export const CLASSIC_FACES: FaceSkin = {
+  id: "classic",
+  name: "Classic (16-bit)",
   cached: true,
   indexColors: (suit) => ({ ink: FACE_PALETTE[ink(suit).base], paper: FACE_PALETTE.f }),
   draw(p: Pix, x: number, y: number, w: number, h: number, rank: number, suit: number) {
@@ -122,7 +122,7 @@ export function backArt(d: BackDesign): string[] {
   return rows;
 }
 
-export const DEFAULT_BACKS: BackSkin[] = BACKS.map((d) => ({
+export const CLASSIC_BACKS: BackSkin[] = BACKS.map((d) => ({
   id: d.id,
   name: d.name,
   cached: true,

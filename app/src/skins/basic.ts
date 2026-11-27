@@ -1,4 +1,4 @@
-// Basic theme: the original cards and sounds, unchanged (moved here from
+// Basic theme (the default): the original cards and sounds, unchanged (moved here from
 // render/cabinet.ts and audio/sfx.ts).
 import { LAYOUT } from "../config/feel";
 import { BASIC_COLORS as P } from "../config/skins";
@@ -28,8 +28,8 @@ export const BASIC_FACES: FaceSkin = {
 };
 
 export const BASIC_BACK: BackSkin = {
-  id: "classic",
-  name: "Classic",
+  id: "basic",
+  name: "Basic",
   cached: false,
   draw(p: Pix, x: number, y: number, w: number, h: number) {
     p.rect(x + 1, y, w - 2, h, P.cardEdge);

@@ -1,4 +1,4 @@
-// Default theme: card backs, generated in code. Each design is a function
+// Classic theme: card backs, generated in code. Each design is a function
 // of the offset (dx, dy) from the card's centre, evaluated through a
 // 180° fold, so every back is exactly symmetric under a half turn, like a
 // real deck. A white border margin frames the pattern.
@@ -165,7 +165,7 @@ export const BACKS: BackDesign[] = [
   },
 ];
 
-export const DEFAULT_BACK = "lattice";
+export const CLASSIC_BACK = "lattice";
 
 /** A back `w`×`h` art pixels: edge, paper border, pattern panel. */
 export function backRaster(design: BackDesign, w: number, h: number): Raster {

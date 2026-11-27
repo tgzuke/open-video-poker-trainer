@@ -1,4 +1,4 @@
-// Default theme: suit symbols and rank glyphs at the finer art resolution,
+// Classic theme: suit symbols and rank glyphs at the finer art resolution,
 // built from simple shapes (our own drawings) and rasterized with
 // in-between edge tones.
 import { Raster, arc, capsule, circle, diff, place, poly, shape, union, type Shape } from "../raster";

@@ -28,7 +28,7 @@ import { keyLabel } from "./ui/settings";
 import type { Level } from "./engine/protocol";
 import { resolveSkin, SOUNDS } from "./skins/registry";
 import { CardRenderer } from "./skins/cards";
-import { loadArtInWorker } from "./skins/default";
+import { loadArtInWorker } from "./skins/classic";
 
 const store = safeLocalStorage();
 const prefs = loadPrefs(store);

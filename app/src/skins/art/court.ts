@@ -1,4 +1,4 @@
-// Default theme: court card portraits (J, Q, K) and the A♠ crest. These are
+// Classic theme: court card portraits (J, Q, K) and the A♠ crest. These are
 // small busts in the card's upper-right corner (the large suit stays on
 // the card, as on real video poker machines), drawn as chunky pixel art
 // on a 36×40 sprite grid: flat colours, one shade, dark outlines, and

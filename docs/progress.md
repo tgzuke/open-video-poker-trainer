@@ -980,3 +980,20 @@ of the pre-skin renderer.
   all 84 app tests pass. Checked in Chrome; console clean.
 
 ![Default faces: kings, A♠, queens, jacks](images/default-faces.png)
+
+### Final changes (owner request, 2026-11-27)
+- **Basic is the default theme again**, for new players and for saved
+  prefs from before themes. The finer-grid theme called "Default" above is
+  renamed **Classic**: theme `classic`, faces "Classic (16-bit)", sounds
+  "Classic bells"; its backs keep their names. Basic's own back, previously
+  named "Classic", is now "Basic" (id `basic`). Choices saved under the old
+  ids carry over (`default` → `classic` for theme, faces and sounds;
+  back `classic` → `basic`), with a test. In code, `skins/default.ts` is now
+  `skins/classic.ts` and `DEFAULT_*` skin constants are `CLASSIC_*`. The
+  sections above keep the old name.
+- **itch.io build bumps the version.** `npm run build:itch` first runs
+  `npm version patch` (or `VERSION_BUMP=minor|major`) on `app/package.json`
+  and `package-lock.json`, so the zip name and the in-game menu carry the
+  new number (see `docs/itch.md`). Run once for this release: **0.1.1**
+  (`release/open-video-poker-trainer-0.1.1-html5.zip`, 66 files, 325 kB).
+- App: 85 tests pass (one new: old saved ids carry over).

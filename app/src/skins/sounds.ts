@@ -1,4 +1,4 @@
-// Default sound pack: bell-like tones and the payout trill, synthesized
+// Classic sound pack: bell-like tones and the payout trill, synthesized
 // with Web Audio (no recorded or copied machine audio). While a win counts
 // up into the credit meter, a fast two-note bell ringing plays for exactly
 // as long as the count-up; a bet or deal cuts it off (Sfx.cancelPayout).
@@ -47,7 +47,7 @@ export function bell(s: Synth, freq: number, t0: number, t1: number, opts: { gai
 }
 
 /** Note start times (ms, relative to `atMs`) and pitches of the payout
- *  sound for a cue: what `DEFAULT_SOUNDS.payout` schedules. Every note
+ *  sound for a cue: what `CLASSIC_SOUNDS.payout` schedules. Every note
  *  starts and ends inside [atMs, atMs + window]. */
 export function payoutNotes(c: PayoutCue): { window: number; notes: { at: number; end: number; freq: number; mod: number }[] } {
   const notes: { at: number; end: number; freq: number; mod: number }[] = [];
@@ -78,9 +78,9 @@ export function payoutNotes(c: PayoutCue): { window: number; notes: { at: number
   return { window, notes };
 }
 
-export const DEFAULT_SOUNDS: SoundPack = {
-  id: "default",
-  name: "Default bells",
+export const CLASSIC_SOUNDS: SoundPack = {
+  id: "classic",
+  name: "Classic bells",
   cards(s, offsetsMs) {
     offsetsMs.forEach((ms, i) => blip(s, 520 + i * 30, 0.035, ms / 1000, "triangle", 0.55));
   },

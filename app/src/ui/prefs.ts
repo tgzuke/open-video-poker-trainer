@@ -7,7 +7,7 @@ import type { Keymap } from "../input/keyboard";
 import { DEFAULT_CHECKING, DEFAULT_GRACE, DEFAULT_MODE, DEFAULT_TIER, type Checking, type Mode } from "../config/trainer";
 import { LEVELS, type Level } from "../engine/protocol";
 import { DEFAULT_THEME } from "../config/skins";
-import { pickTheme } from "../skins/registry";
+import { currentId, pickTheme } from "../skins/registry";
 
 export interface Prefs {
   paytableId: string;
@@ -100,8 +100,12 @@ export function loadPrefs(store: Store | null): Prefs {
   if (typeof r.grace === "number" && Number.isFinite(r.grace) && r.grace >= 0) p.grace = r.grace;
   if (LEVELS.includes(r.tier as Level)) p.tier = r.tier as Level;
   // Skins (saved prefs from before skins have none: the default theme).
-  if (typeof r.theme === "string") Object.assign(p, pickTheme(r.theme), { theme: r.theme });
-  for (const k of ["faces", "backs", "sounds"] as const) if (typeof r[k] === "string") p[k] = r[k] as string;
+  // Renamed ids are carried over to their new names.
+  if (typeof r.theme === "string") {
+    const t = currentId("theme", r.theme);
+    Object.assign(p, pickTheme(t), { theme: t });
+  }
+  for (const k of ["faces", "backs", "sounds"] as const) if (typeof r[k] === "string") p[k] = currentId(k, r[k] as string);
   return p;
 }
 
