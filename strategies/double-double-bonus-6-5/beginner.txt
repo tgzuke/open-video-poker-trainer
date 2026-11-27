@@ -19,12 +19,12 @@ pair J-A, three of a kind                                                       
 pair                                                                                       # fires  28.2187%  wrong   0.0794%  loss 0.000314
 4 to a straight w=2                                                                        # fires   2.2717%  wrong   0.0000%  loss 0.000000
 3 to a straight flush w=3, 3 to a straight flush w=2                                       # fires   1.1012%  wrong   0.0859%  loss 0.000169
-4 to a straight w=1 h=4                                                                    # fires   0.2498%  wrong   0.0000%  loss 0.000000
-4 to a straight w=1 h=3                                                                    # fires   0.9544%  wrong   0.2156%  loss 0.000101
-2 high cards suited prefer low                                                             # fires   5.9849%  wrong   0.1510%  loss 0.000296
+4 to a straight h=4                                                                        # fires   0.2498%  wrong   0.0000%  loss 0.000000
+4 to a straight h=3                                                                        # fires   0.9544%  wrong   0.2156%  loss 0.000101
+2 high cards suited                                                                        # fires   5.9849%  wrong   0.1510%  loss 0.000296
 3 to a straight flush h=1                                                                  # fires   0.6866%  wrong   0.0494%  loss 0.000020
 A                                                                                          # fires  12.2306%  wrong   0.5984%  loss 0.000230
 2 high cards prefer low                                                                    # fires   7.0838%  wrong   1.0015%  loss 0.001337
 1 high card                                                                                # fires  12.4979%  wrong   0.9562%  loss 0.000821
-4 to a straight w=1 h=0                                                                    # fires   1.3773%  wrong   0.1634%  loss 0.000196
+4 to a straight                                                                            # fires   1.3773%  wrong   0.1634%  loss 0.000196
 discard everything                                                                         # fires   2.1290%  wrong   0.0970%  loss 0.000281

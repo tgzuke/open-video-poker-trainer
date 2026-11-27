@@ -8,23 +8,23 @@
 # complete: yes
 #
 # per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
-royal flush, straight flush, four of a kind       # fires   0.0255%  wrong   0.0000%  loss 0.000000
-full house, 4 to a royal                          # fires   0.1801%  wrong   0.0111%  loss 0.000064
-flush, straight, three of a kind                  # fires   2.6931%  wrong   0.0000%  loss 0.000000
-4 to a straight flush, two pair                   # fires   4.9497%  wrong   0.0000%  loss 0.000000
-pair J-A                                          # fires  12.9846%  wrong   0.1071%  loss 0.000351
-4 to a flush                                      # fires   3.6568%  wrong   0.0305%  loss 0.000072
-3 to a royal                                      # fires   0.7244%  wrong   0.0000%  loss 0.000000
-4 to a straight w=2                               # fires   2.6946%  wrong   0.0000%  loss 0.000000
-pair                                              # fires  27.7957%  wrong   0.0379%  loss 0.000060
-3 to a straight flush                             # fires   2.8687%  wrong   0.2419%  loss 0.000399
-4 to a straight                                   # fires   6.4540%  wrong   1.8672%  loss 0.002811
-3 to a flush h=2                                  # fires   2.4116%  wrong   0.6067%  loss 0.000269
-2 high cards suited                               # fires   3.0843%  wrong   0.0000%  loss 0.000000
-3 to a straight w=2 h=3, 3 to a straight w=3 h=2  # fires   0.7309%  wrong   0.0000%  loss 0.000000
-JT suited                                         # fires   0.5559%  wrong   0.0277%  loss 0.000004
-3 to a flush h=1                                  # fires   6.3164%  wrong   1.0578%  loss 0.000420
-2 high cards prefer low                           # fires   9.5512%  wrong   3.0095%  loss 0.000855
-1 high card                                       # fires  10.2904%  wrong   0.3938%  loss 0.000666
-3 to a flush h=0                                  # fires   0.6469%  wrong   0.0000%  loss 0.000000
-discard everything                                # fires   1.3852%  wrong   0.0000%  loss 0.000000
+royal flush, straight flush, four of a kind, full house  # fires   0.1696%  wrong   0.0111%  loss 0.000064
+4 to a royal                                             # fires   0.0360%  wrong   0.0000%  loss 0.000000
+flush, straight, three of a kind                         # fires   2.6931%  wrong   0.0000%  loss 0.000000
+4 to a straight flush, two pair                          # fires   4.9497%  wrong   0.0000%  loss 0.000000
+pair J-A                                                 # fires  12.9846%  wrong   0.1071%  loss 0.000351
+4 to a flush                                             # fires   3.6568%  wrong   0.0305%  loss 0.000072
+3 to a royal                                             # fires   0.7244%  wrong   0.0000%  loss 0.000000
+4 to a straight w=2                                      # fires   2.6946%  wrong   0.0000%  loss 0.000000
+pair                                                     # fires  27.7957%  wrong   0.0379%  loss 0.000060
+3 to a straight flush                                    # fires   2.8687%  wrong   0.2419%  loss 0.000399
+4 to a straight                                          # fires   6.4540%  wrong   1.8672%  loss 0.002811
+3 to a flush h=2                                         # fires   2.4116%  wrong   0.6067%  loss 0.000269
+2 high cards suited                                      # fires   3.0843%  wrong   0.0000%  loss 0.000000
+3 to a straight w=2 h=3, 3 to a straight w=3 h=2         # fires   0.7309%  wrong   0.0000%  loss 0.000000
+JT suited                                                # fires   0.5559%  wrong   0.0277%  loss 0.000004
+3 to a flush h=1                                         # fires   6.3164%  wrong   1.0578%  loss 0.000420
+2 high cards prefer low                                  # fires   9.5512%  wrong   3.0095%  loss 0.000855
+1 high card                                              # fires  10.2904%  wrong   0.3938%  loss 0.000666
+3 to a flush                                             # fires   0.6469%  wrong   0.0000%  loss 0.000000
+discard everything                                       # fires   1.3852%  wrong   0.0000%  loss 0.000000

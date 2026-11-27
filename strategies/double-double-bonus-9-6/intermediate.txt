@@ -19,17 +19,17 @@ pair J-A                                                                        
 4 to a flush                                                                               # fires   3.2902%  wrong   0.0000%  loss 0.000000
 pair                                                                                       # fires  28.2187%  wrong   0.0794%  loss 0.000193
 4 to a straight w=2                                                                        # fires   2.2717%  wrong   0.0000%  loss 0.000000
-3 to a straight flush w=3 fp=0, 3 to a straight flush h=2 fp=0                             # fires   0.5014%  wrong   0.0000%  loss 0.000000
-4 to a straight w=1 h=4                                                                    # fires   0.2456%  wrong   0.0000%  loss 0.000000
-2 high cards suited prefer low                                                             # fires   6.3630%  wrong   0.1053%  loss 0.000035
-3 to a straight flush h=1 fp=0                                                             # fires   0.8366%  wrong   0.0074%  loss 0.000010
-4 to a straight h=3, 3 to a straight flush w=2 fp=0                                        # fires   1.0301%  wrong   0.0000%  loss 0.000000
-4 to a straight w=1 h=2                                                                    # fires   0.6427%  wrong   0.0000%  loss 0.000000
+3 to a straight flush w=3, 3 to a straight flush h=2                                       # fires   0.5014%  wrong   0.0000%  loss 0.000000
+4 to a straight h=4                                                                        # fires   0.2456%  wrong   0.0000%  loss 0.000000
+2 high cards suited                                                                        # fires   6.3630%  wrong   0.1053%  loss 0.000035
+3 to a straight flush h=1                                                                  # fires   0.8366%  wrong   0.0074%  loss 0.000010
+4 to a straight h=3, 3 to a straight flush w=2                                             # fires   1.0301%  wrong   0.0000%  loss 0.000000
+4 to a straight h=2                                                                        # fires   0.6427%  wrong   0.0000%  loss 0.000000
 A                                                                                          # fires  12.2177%  wrong   0.3920%  loss 0.000144
 JT suited, 3 to a straight h=3                                                             # fires   0.8750%  wrong   0.1385%  loss 0.000048
-2 high cards prefer low                                                                    # fires   5.9188%  wrong   0.0000%  loss 0.000000
+2 high cards                                                                               # fires   5.9188%  wrong   0.0000%  loss 0.000000
 QT suited                                                                                  # fires   0.3948%  wrong   0.0000%  loss 0.000000
 1 high card                                                                                # fires  11.7633%  wrong   0.4225%  loss 0.000180
-3 to a straight flush fp=0                                                                 # fires   0.2604%  wrong   0.0000%  loss 0.000000
-4 to a straight w=1 h=0                                                                    # fires   1.2139%  wrong   0.0000%  loss 0.000000
+3 to a straight flush                                                                      # fires   0.2604%  wrong   0.0000%  loss 0.000000
+4 to a straight                                                                            # fires   1.2139%  wrong   0.0000%  loss 0.000000
 discard everything                                                                         # fires   2.0320%  wrong   0.0000%  loss 0.000000

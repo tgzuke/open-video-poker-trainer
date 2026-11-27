@@ -1,0 +1,35 @@
+# Open Video Poker Trainer strategy (generated; notation: docs/strategy-format.md)
+# game: double-double-bonus
+# paytable: double-double-bonus-9-5
+# bet: 5
+# tier: intermediate (max 25 lines)
+# return: 97.864449%  optimal: 97.872937%
+# loss: 0.000424 credits/hand (0.008488 points of return)
+# complete: yes
+#
+# per rule: how often it decides the hand, how often its hold is not optimal, EV lost (credits/hand)
+royal flush, straight flush, four of a kind A kicker 2-4, four of a kind 2-4 kicker A,2-4  # fires   0.0034%  wrong   0.0000%  loss 0.000000
+four of a kind, 4 to a royal, three of a kind A                                            # fires   0.2318%  wrong   0.0000%  loss 0.000000
+full house, flush, straight                                                                # fires   0.7132%  wrong   0.0000%  loss 0.000000
+three of a kind, 4 to a straight flush                                                     # fires   2.1461%  wrong   0.0000%  loss 0.000000
+pair A                                                                                     # fires   3.9782%  wrong   0.0000%  loss 0.000000
+two pair                                                                                   # fires   4.0225%  wrong   0.0000%  loss 0.000000
+pair J-A                                                                                   # fires   9.7377%  wrong   0.0000%  loss 0.000000
+3 to a royal                                                                               # fires   1.0911%  wrong   0.0000%  loss 0.000000
+4 to a flush                                                                               # fires   3.2902%  wrong   0.0000%  loss 0.000000
+pair                                                                                       # fires  28.2187%  wrong   0.0794%  loss 0.000193
+4 to a straight w=2, 4 to a straight w=1 h=4                                               # fires   2.5229%  wrong   0.0014%  loss 0.000004
+3 to a straight flush h=2 fp=0, 3 to a straight flush w=3 fp=0                             # fires   0.4959%  wrong   0.0028%  loss 0.000001
+4 to a straight h=3                                                                        # fires   0.9350%  wrong   0.2045%  loss 0.000107
+2 high cards suited prefer low                                                             # fires   5.8703%  wrong   0.0009%  loss 0.000001
+3 to a straight w=2 h=3, 3 to a straight flush w=2 fp=0                                    # fires   1.0481%  wrong   0.0891%  loss 0.000039
+4 to a straight w=1 h=2                                                                    # fires   0.6894%  wrong   0.0000%  loss 0.000000
+3 to a straight flush h=1 fp=0                                                             # fires   0.6390%  wrong   0.0083%  loss 0.000002
+QJ unsuited                                                                                # fires   2.2186%  wrong   0.0240%  loss 0.000001
+A                                                                                          # fires  11.8261%  wrong   0.0623%  loss 0.000005
+2 high cards prefer low                                                                    # fires   4.3176%  wrong   0.0623%  loss 0.000011
+JT suited, QT suited                                                                       # fires   0.7346%  wrong   0.0000%  loss 0.000000
+1 high card                                                                                # fires  11.7633%  wrong   0.2216%  loss 0.000060
+3 to a straight flush fp=0                                                                 # fires   0.2604%  wrong   0.0000%  loss 0.000000
+4 to a straight w=1 h=0                                                                    # fires   1.2139%  wrong   0.0000%  loss 0.000000
+discard everything                                                                         # fires   2.0320%  wrong   0.0000%  loss 0.000000
